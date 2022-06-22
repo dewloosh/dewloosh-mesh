@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "..\\dewloosh-core\\src\\dewloosh\\core"
+		},
+		{
+			"path": "..\\dewloosh-math\\src\\dewloosh\\math"
+		},
+		{
+			"path": "."
+		},
+	],
+	"settings": {
+		"makefile.extensionOutputFolder": "./.vscode"
+	}
+}
