@@ -37,7 +37,8 @@ class TestPolyData(unittest.TestCase):
                               eshape='H27', origo=(0, 0, 100))
         coords = np.vstack([coords1, coords2])
         topo2 += coords1.shape[0]
-        pd = PolyData(coords=coords)
+        A = CartesianFrame(dim=3)
+        pd = PolyData(coords=coords, frame=A)
         pd['group1']['mesh1'] = PolyData(topo=topo1, vtkCellType=29)
         pd['group2', 'mesh2'] = PolyData(topo=topo2, vtkCellType=29)
         pd.center()
@@ -49,7 +50,8 @@ class TestPolyData(unittest.TestCase):
         size = 100, 100, 100
         shape = 10, 10, 10
         coords, topo = grid(size=size, shape=shape, eshape='H27')
-        pd = PolyData(coords=coords)
+        A = CartesianFrame(dim=3)
+        pd = PolyData(coords=coords, frame=A)
         pd['A']['Part1'] = PolyData(topo=topo[:10])
         pd['B']['Part2'] = PolyData(topo=topo[10:-10])
         pd['C']['Part3'] = PolyData(topo=topo[-10:])

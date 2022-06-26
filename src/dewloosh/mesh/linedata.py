@@ -31,6 +31,6 @@ class LineData(PolyData):
         key = self.__class__._pv_config_key_
         self.config[key]['color'] = 'k'
         self.config[key]['line_width'] = 10
-        #self.config[key]['render_lines_as_tubes'] = True 
+        self.config[key]['render_lines_as_tubes'] = True 
         #self.config[key]['style'] = 'wireframe'   
                
