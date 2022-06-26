@@ -12,11 +12,13 @@ from numba import njit, prange
 from typing import Union
 
 from dewloosh.core.tools import issequence
+
 from dewloosh.math.array import minmax
 from dewloosh.math.linalg.vector import VectorBase, Vector
 from dewloosh.math.linalg.frame import ReferenceFrame as FrameLike
 
 from .frame import CartesianFrame
+from .point import Point
 
 __cache = True
 
@@ -63,7 +65,7 @@ class PointCloud(Vector):
     --------
     Collect the points of a simple triangulation and get the center:
 
-    >>> from dewloosh.geom.tri import triangulate
+    >>> from dewloosh.mesh.tri import triangulate
     >>> coords, *_ = triangulate(size=(800, 600), shape=(10, 10))
     >>> coords = PointCloud(coords)
     >>> coords.center()
@@ -112,12 +114,13 @@ class PointCloud(Vector):
     """
 
     _array_cls_ = VectorBase
+    _vector_cls_ = Point  # TODO : this is currently not used
     _frame_cls_ = CartesianFrame
 
     def __init__(self, *args, frame=None, inds=None, **kwargs):
         if frame is None:
             if len(args) > 0 and isinstance(args[0], np.ndarray):
-                frame = self._frame_cls_(dim=args[0].shape[1])
+                frame = self._frame_cls_(dim=args[0].shape[-1])
         super().__init__(*args, frame=frame, **kwargs)
         self.inds = inds if inds is None else np.array(inds, dtype=int)
 
@@ -266,7 +269,7 @@ class PointCloud(Vector):
         --------
         Collect the points of a simple triangulation and get the center:
 
-        >>> from dewloosh.geom.tri import triangulate
+        >>> from dewloosh.mesh.tri import triangulate
         >>> coords, *_ = triangulate(size=(800, 600), shape=(10, 10))
         >>> coords = PointCloud(coords)
         >>> coords.center()

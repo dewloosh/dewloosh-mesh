@@ -72,6 +72,10 @@ def areas_T6(ecoords: np.ndarray, qpos: np.ndarray, qweight: np.ndarray):
 
 
 class T6(Triangle):
+    """
+    A class to handle 6-noded triangles.
+    
+    """
 
     @classmethod
     def lcoords(cls, *args, **kwargs):

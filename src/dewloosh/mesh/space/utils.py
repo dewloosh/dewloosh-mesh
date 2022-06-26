@@ -27,8 +27,8 @@ def frame_of_plane(coords: ndarray):
     coords : numpy.ndarray
         2d coordinate array
 
-    Returns:
-    --------        
+    Returns
+    -------        
     numpy.ndarray
         3x3 global -> local DCM matrix 
         
@@ -56,10 +56,11 @@ def frames_of_surfaces(coords: ndarray, topo: ndarray):
     topo : numpy.ndarray
         2d point-based topology array
 
-    Returns:
-    --------        
+    Returns
+    -------       
     numpy.ndarray
         3d array of 3x3 transformation matrices
+        
     """
     nE, nNE = topo.shape
     nNE -= 1
@@ -88,8 +89,8 @@ def tr_cell_glob_to_loc_bulk(coords: np.ndarray, topo: np.ndarray):
     topo : numpy.ndarray
         2d point-based topology array
 
-    Returns:
-    --------
+    Returns
+    -------
     numpy.ndarray
         2d coordinate array of local coordinates
 
@@ -98,6 +99,7 @@ def tr_cell_glob_to_loc_bulk(coords: np.ndarray, topo: np.ndarray):
 
     numpy.ndarray
         3d array of 3x3 transformation matrices
+        
     """
     nE, nNE = topo.shape
     tr = np.zeros((nE, 3, 3), dtype=coords.dtype)
@@ -172,8 +174,8 @@ def frames_of_lines(coords: ndarray, topo: ndarray, refZ: ndarray=None):
         contain values for all lines defined by `topo`. 
         Default is None.
 
-    Returns:
-    --------        
+    Returns
+    -------      
     numpy.ndarray
         3d array of 3x3 transformation matrices
         
@@ -204,8 +206,8 @@ def is_planar_surface(normals: ndarray, tol=1e-8):
     tol : float
         Floating point tolerance as maximum deviation.
 
-    Returns:
-    --------        
+    Returns
+    -------       
     Bool
         True if the surfaces whose normal vectors are provided form
         a flat surface, False otherwise.
@@ -249,8 +251,8 @@ def is_line(coords: ndarray, tol=1e-8):
     tol : float
         Floating point tolerance as maximum deviation.
 
-    Returns:
-    --------        
+    Returns
+    -------        
     Bool
         True if all absolute deviations from the line between the first 
         and the last point is smaller than 'tol'.
@@ -278,8 +280,8 @@ def is_planar(coords: ndarray, tol=1e-8):
     tol : float
         Floating point tolerance as maximum deviation.
 
-    Returns:
-    --------        
+    Returns
+    -------        
     Bool
                 
     """

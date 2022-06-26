@@ -10,6 +10,7 @@ from .triutils import offset_tri
 from ..utils import cells_coords, explode_mesh_data_bulk
 
 from ..config import __hasmatplotlib__
+
 if __hasmatplotlib__:
     import matplotlib.pyplot as plt
     from matplotlib.patches import Polygon
@@ -22,6 +23,90 @@ __all__ = ['triplot']
 
 def triplot(triobj, *args, hinton=False, data=None, title=None,
             label=None, fig=None, ax=None, axes=None, **kwargs):
+    """
+    Creates plots over triangulations using `matplotlib`.
+    
+    Parameters
+    ----------
+    triobj : TriMeshLike
+        This is either a tuple of mesh data (coordinates and topology)
+        or a triangulation object understood by `dewloosh.tri.trimesh.triangulate`.
+
+    hinton : bool, Optional.
+        Creates a hinton-like plot. Only wors if the provided data is along
+        the cells. Default is False.
+        
+    data : ndarray, Optional.  
+        Some data to plot as an 1d or 2d numpy array. Default is None.
+    
+    title : str, Optional.
+        Title of the plot. See `matplotlib` for further details.
+        Default is None.
+        
+    label : str, Optional.
+        Title of the plot. See `matplotlib` for further details.
+        Default is None.
+        
+    fig : matplotlib.Figure, Optional.
+        A `matplotlib` figure to plot on. Default is None.
+        
+    ax : matplotlib.axes.Axes or a collection of it, Optional.
+        A `matplotlib` axis, or a collection of such objects to plot on. 
+        Default is None.
+        
+    kwargs : dict, Optional.
+        The following keyword arguments are understood and forwarded to the 
+        appropriate function in `matplotlib`:
+        
+        'cmap' - colormap (if `data` is provided)   
+        'lw' 
+        'xlim' 
+        'ylim' 
+        'axis' 
+        'suptitle'
+        
+    Examples
+    --------
+    Let's first create a triangulation
+    
+    >>> from dewloosh.mesh.rgrid import grid
+    >>> from dewloosh.mesh.topo.tr import Q4_to_T3
+    >>> from dewloosh.mesh.tri.trimesh import triangulate
+    >>> from dewloosh.mesh.tri.triplot import triplot
+    >>> import numpy as np
+    >>> gridparams = {
+    >>>     'size' : (1200, 600),
+    >>>     'shape' : (30, 15),
+    >>>     'eshape' : (2, 2),
+    >>>     'origo' : (0, 0),
+    >>>     'start' : 0
+    >>> }
+    >>> coordsQ4, topoQ4 = grid(**gridparams)
+    >>> points, triangles = Q4_to_T3(coordsQ4, topoQ4, path='grid')
+    >>> triobj = triangulate(points=points[:, :2], triangles=triangles)[-1]
+    
+    If you jsut want to plot the mesh itself, do this if
+    
+    >>> triplot(triobj)
+    
+    Plot the mesh with random data over the cells
+    
+    >>> data = np.random.rand(len(triangles))   
+    >>> triplot(triobj, data=data)
+    
+    >>> data = np.random.rand(len(triangles))
+    >>> triplot(triobj, hinton=True, data=data)
+    
+    Plot the mesh with random data over the points
+    
+    >>> data = np.random.rand(len(points))
+    >>> triplot(triobj, data=data, cmap='bwr')    
+    
+    You can play with the arguments sent to mpl
+    
+    >>> triplot(triobj, data=data, cmap='Set1', axis='off')
+    
+    """
     fig, axes = get_fig_axes(*args, data=data, ax=ax, axes=axes,
                              fig=fig, **kwargs)
     if isinstance(triobj, tuple):
@@ -69,8 +154,8 @@ def triplot_hinton(triobj, ax, data, *args, lw=0.5, fcolor='b',
     cellcoords = offset_tri(points, triangles, data)
     axobj = TriPatchCollection(cellcoords, fc=fcolor, ec=ecolor, lw=lw)
     ax.add_collection(axobj)
-    _decorate_(ax=ax, points=points, title=title, suptitle=suptitle,
-               label=label, **kwargs)
+    decorate_ax(ax=ax, points=points, title=title, suptitle=suptitle,
+                label=label, **kwargs)
     return axobj
 
 
@@ -80,7 +165,7 @@ def triplot_geom(triobj, ax, *args, lw=0.5, marker='b-',
                  **kwargs):
     axobj = None
     tri = triobj_to_mpl(triobj)
-    points, triangles = get_triobj_data(tri, *args, trim2d=True, **kwargs)
+    points, triangles = get_triobj_data(tri, trim2d=True)
 
     if fcolor is None:
         if zorder is not None:
@@ -91,8 +176,8 @@ def triplot_geom(triobj, ax, *args, lw=0.5, marker='b-',
         cellcoords = cells_coords(points, triangles)
         axobj = TriPatchCollection(cellcoords, fc=fcolor, ec=ecolor, lw=lw)
         ax.add_collection(axobj)
-    _decorate_(fig=fig, ax=ax, points=points, title=title,
-               suptitle=suptitle, label=label, **kwargs)
+    decorate_ax(fig=fig, ax=ax, points=points, title=title,
+                suptitle=suptitle, label=label, **kwargs)
     return axobj
 
 
@@ -102,7 +187,7 @@ def triplot_data(triobj, ax, data, *args, cmap='winter', fig=None,
 
     axobj = None
     tri = triobj_to_mpl(triobj)
-    points, triangles = get_triobj_data(tri, *args, trim2d=True, **kwargs)
+    points, triangles = get_triobj_data(tri, trim2d=True)
 
     nData = len(data)
     if nData == len(triangles):
@@ -127,8 +212,8 @@ def triplot_data(triobj, ax, data, *args, cmap='winter', fig=None,
     cax = divider.append_axes("right", size="5%", pad=0.05)
     fig.colorbar(axobj, cax=cax)
 
-    _decorate_(fig=fig, ax=ax, points=points, title=title,
-               suptitle=suptitle, label=label, **kwargs)
+    decorate_ax(fig=fig, ax=ax, points=points, title=title,
+                suptitle=suptitle, label=label, **kwargs)
     return axobj
 
 
@@ -173,11 +258,11 @@ def get_fig_axes(*args, data=None, fig=None, axes=None, shape=None,
     return None, None
 
 
-def _decorate_(*args, fig=None, ax=None, aspect='equal', xlim=None,
-               ylim=None, axis='on', offset=0.05, points=None,
-               axfnc: Callable = None, title=None, suptitle=None,
-               label=None, **kwargs):
-    assert ax is not None, "A matplotlib Axes object must be provided as " \
+def decorate_ax(*args, fig=None, ax=None, aspect='equal', xlim=None,
+                ylim=None, axis='on', offset=0.05, points=None,
+                axfnc: Callable = None, title=None, suptitle=None,
+                label=None, **kwargs):
+    assert ax is not None, "A matplotlib Axes object must be provided with " \
         "keyword argument 'ax'!"
     if axfnc is not None:
         try:
@@ -209,7 +294,3 @@ def _decorate_(*args, fig=None, ax=None, aspect='equal', xlim=None,
     if fig is not None and suptitle is not None:
         fig.suptitle(suptitle)
     return ax
-
-
-if __name__ == '__main__':
-    pass

@@ -287,34 +287,52 @@ def cells_at_nodes(topo: TopoLike, *args, frmt=None, assume_regular=False,
     or a dictionary (if `cellIDs` is not `None`). If format is 'raw', the
     counts are always returned.
 
-    if frmt == None
+    `frmt` = None
+        
         counts : np.ndarray(nN) - numbers of connecting elements
+        
         ereg : np.ndarray(nN, nmax) - indices of connecting elements
+        
         nreg : np.ndarray(nN, nmax) - node indices with respect to the
-                                      connecting elements
-        where
-            nN - is the number of nodes,
-            nmax - is the maximum number of elements that meet at a node, that is
-                count.max()  
-    elif frmt == 'csr'
+                                        connecting elements
+    where
+    
+        nN - is the number of nodes,
+       
+        nmax - is the maximum number of elements that meet at a node, that is
+            count.max()  
+        
+    `frmt` = 'csr'
+        
         counts(optionally) : np.ndarray(nN) - number of connecting elements
+       
         csr : csr_matrix - sparse matrix in a numba-jittable csr format.
-                           Column indices denote element indices, values
-                           have the meaning of element node locations.                       
-    elif frmt == 'scipy-csr'
+                            Column indices denote element indices, values
+                            have the meaning of element node locations.                       
+    
+    `frmt` = 'scipy-csr'
+        
         counts(optionally) : np.ndarray(nN) - number of connecting elements
+        
         csr : csr_matrix - An instance of scipy.linalg.sparse.csr_matrix.
-                           Column indices denote element indices, values
-                           have the meaning of element node locations.
-    elif frmt == 'dicts'
+                            Column indices denote element indices, values
+                            have the meaning of element node locations.
+    `frmt` = 'dicts'
+        
         counts(optionally) : np.ndarray(nN) - number of connecting elements
+        
         ereg : numba Dict(int : int[:]) - indices of elements for each node
-                                          index
+                                            index
+        
         nreg : numba Dict(int : int[:]) - local indices of nodes in the
-                                          connecting elements   
-    elif frmt == 'jagged'
+                                            connecting elements   
+    
+    `frmt` = 'jagged'
+        
         counts(optionally) : np.ndarray(nN) - number of connecting elements
+        
         ereg : JaggedArray - indices of elements for each node index
+        
         nreg : JaggedArray - local indices of nodes in the connecting elements   
 
     """
@@ -656,15 +674,15 @@ def nodal_adjacency(topo: TopoLike, *args, frmt=None,
 
     Returns
     -------
-    if frmt == None
+    `frmt` = None
         A dictionary of numpy arrays for each node.
-    elif frmt == 'csr'
+    `frmt` = 'csr'
         csr_matrix - A sparse matrix in a numba-jittable csr format.
-    elif frmt == 'scipy-csr'
+    `frmt` = 'scipy-csr'
         An instance of scipy.linalg.sparse.csr_matrix.
-    elif frmt == 'nx'
+    `frmt` = 'nx'
         A networkx Graph.
-    elif frmt == 'jagged'
+    `frmt` = 'jagged'
         A JaggedArray instance.
 
     """
@@ -718,8 +736,8 @@ def unique_topo_data(topo3d: TopoLike):
     --------
     Find unique edges of a mesh of Q4 quadrilaterals
 
-    >>> from dewloosh.geom.rgrid import grid
-    >>> from dewloosh.geom.topo.topodata import edges_Q4
+    >>> from dewloosh.mesh.rgrid import grid
+    >>> from dewloosh.mesh.topo.topodata import edges_Q4
 
     >>> coords, topo = grid(size=(1, 1), shape=(10, 10), eshape='Q4')
 

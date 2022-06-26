@@ -57,5 +57,4 @@ class QuadraticLine(Line):
 class NonlinearLine(Line):
     
     NNODE :int = None
-    vtkCellType = None
-    
+    vtkCellType = None   

@@ -8,6 +8,10 @@ from .cell import PolyCell2d
 
 
 class PolyGon(PolyCell2d):
+    """
+    Base class for polygons.
+    
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -46,6 +50,10 @@ class PolyGon(PolyCell2d):
 
 
 class Triangle(PolyGon):
+    """
+    Base class for triangles.
+    
+    """
 
     NNODE = 3
     vtkCellType = 5
@@ -59,7 +67,7 @@ class Triangle(PolyGon):
     
     @classmethod
     def from_TriMesh(cls, *args, coords=None, topo=None, **kwargs):
-        from dewloosh.geom.tri import TriMesh
+        from dewloosh.mesh.tri.trimesh import TriMesh
         if len(args) > 0 and isinstance(args[0], TriMesh):
             return TriMesh.coords(), TriMesh.topology()
         elif coords is not None and topo is not None:
@@ -89,7 +97,7 @@ class QuadraticTriangle(PolyGon):
     
     @classmethod
     def from_TriMesh(cls, *args, coords=None, topo=None, **kwargs):
-        from dewloosh.geom.tri import TriMesh
+        from dewloosh.mesh.tri.trimesh import TriMesh
         if len(args) > 0 and isinstance(args[0], TriMesh):
             return T3_to_T6(TriMesh.coords(), TriMesh.topology())
         elif coords is not None and topo is not None:
@@ -120,7 +128,3 @@ class BiQuadraticQuadrilateral(PolyGon):
         coords = self.pointdata.x.to_numpy() if coords is None else coords
         topo = self.nodes.to_numpy() if topo is None else topo
         return Q4_to_T3(*Q9_to_Q4(coords, topo, data))
-
-
-if __name__ == '__main__':
-    pass

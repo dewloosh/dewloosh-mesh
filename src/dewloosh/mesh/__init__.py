@@ -9,3 +9,4 @@ from dewloosh.mesh.rgrid import grid, Grid
 from dewloosh.mesh.tri.trimesh import TriMesh
 from dewloosh.mesh.tet.tetmesh import TetMesh
 from dewloosh.mesh.polydata import PolyData
+from dewloosh.mesh.linedata import LineData

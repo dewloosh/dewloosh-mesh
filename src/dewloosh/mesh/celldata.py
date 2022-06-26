@@ -9,14 +9,24 @@ from .akwrap import AkWrapper
 
 
 class CellData(AkWrapper):
-    """This is a class"""
+    """
+    A class to handle data related to the cells of a polygonal mesh.
+    
+    Technicall this is a wrapper around an `awkward.Record` instance.
+    
+    If you are not a developer, you probably don't have to ever create any
+    instance of this class, but since it operates in the background of every
+    polygonal data structure, it is important to understand how it works.
+    
+    """
     
     def __init__(self, *args, pointdata=None, celldata=None,
                  wrap=None, topo=None, fields=None, frames=None, 
-                 **kwargs):
+                 db=None, **kwargs):
         fields = {} if fields is None else fields
         assert isinstance(fields, dict)     
 
+        celldata = db if db is not None else celldata
         if celldata is not None:
             wrap = celldata
         else:
@@ -39,6 +49,10 @@ class CellData(AkWrapper):
             
         super().__init__(*args, wrap=wrap, fields=fields, **kwargs)
         self.pointdata = pointdata
+        
+    @property
+    def pd(self) -> AkWrapper:
+        return self.pointdata
         
     def __getattr__(self, attr):
         if attr in self.__dict__:

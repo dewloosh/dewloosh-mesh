@@ -82,9 +82,11 @@ extensions = [
 
     # for automatic exploration of the source files
     'sphinx.ext.autodoc',
+    
+    #'sphinx.ext.autosummary',
 
     # to enable cross referencing other documents on the internet
-    # 'sphinx.ext.intersphinx',
+    'sphinx.ext.intersphinx',
 
     # Napoleon is a extension that enables Sphinx to parse both NumPy and Google style docstrings
     'sphinx.ext.napoleon',
@@ -96,11 +98,27 @@ extensions = [
     'sphinx.ext.mathjax',  # for mesh equations
     'sphinxcontrib.bibtex',  # for bibliographic references
     'sphinxcontrib.rsvgconverter',  # for SVG->PDF conversion in LaTeX output
+    
     'sphinx_gallery.load_style',  # load CSS for gallery (needs SG >= 0.6)
+    #'sphinx_gallery.gen_gallery',
 
     # 'sphinx.ext.coverage',
     "pyvista.ext.plot_directive",
 ]
+
+intersphinx_mapping = {
+    'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
+    'python': ('https://docs.python.org/3', None),
+    'numpy' : ('https://numpy.org/doc/stable/', None),
+    'scipy' : ('https://docs.scipy.org/doc/scipy/', None),
+    #'sympy' : ('https://readthedocs.org/projects/sympy/', None),
+    'awkward' : ('https://awkward-array.readthedocs.io/en/latest/', None),
+    #'numba' : ('', None),
+    #'networkx' : ('', None),
+    #'pyvista' : ('', None),
+    'dewloosh_core': ('https://dewloosh-core.readthedocs.io/en/latest/', None),
+    'dewloosh_math': ('https://dewloosh-math.readthedocs.io/en/latest/', None)
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -129,6 +147,27 @@ exclude_patterns = []
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
+# generate autosummary even if no references
+autosummary_generate = True
+
+"""sphinx_gallery_conf = {
+    
+    'examples_dirs': ['../../examples'],
+    
+    'default_thumb_file': '_static/mesh_advanced.png',
+    
+    # directory where function/class granular galleries are stored
+    'backreferences_dir'  : 'gen_modules/backreferences',
+
+    # Modules for which function/class level galleries are created. In
+    # this case sphinx_gallery and numpy in a tuple of strings.
+    'doc_module'          : ('sphinx_gallery', 'dewloosh.mesh')
+    }"""
+
+"""nbsphinx_thumbnails = {
+    'examples/thumbnail-from-conf-py': 'examples/mesh_advanced.png',
+}
+"""
 
 # -- Options for HTML output -------------------------------------------------
 

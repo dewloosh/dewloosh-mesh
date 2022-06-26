@@ -11,10 +11,21 @@ __cache = True
 
 
 @njit(nogil=True, parallel=True, cache=__cache)
-def tile2d(coords: array, topo: array, shape: tuple, tol=1e-8):
+def tile2d(coords: array, topo: array, shape: tuple, tol: float=1e-8):
     """
     Tiles a rectangle with the mesh defined by the coordinate
     array 'coords' and topology array 'topo'.
+    
+    Parameters
+    ----------
+    coords: ndarray
+    
+    topo: ndaray
+    
+    shape : Tupel
+    
+    tol : float
+        
     """
     nX, nY = shape
     nP, nD = coords.shape

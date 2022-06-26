@@ -38,13 +38,13 @@ def k_nearest_neighbours(X: ndarray, Y: ndarray=None, *args, backend='scipy',
     of `scipy` and `sklearn`. The most important parameters are highlighted, for the 
     complete list of arguments, see the corresponding docs:
     
-        https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.KDTree.html#scipy.spatial.KDTree
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.KDTree.html#scipy.spatial.KDTree
         
-        https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KDTree.html  
+    https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KDTree.html  
     
     To learn more about nearest neighbour searches in general:
     
-        https://scikit-learn.org/stable/modules/neighbors.html
+    https://scikit-learn.org/stable/modules/neighbors.html
     
     Parameters
     ----------
@@ -83,8 +83,7 @@ def k_nearest_neighbours(X: ndarray, Y: ndarray=None, *args, backend='scipy',
     tree_kwargs : dict, Optional
         Extra keyword arguments passed to the query function of the selected
         backend. Default is None.
-        
-        
+           
     Returns
     -------
     d : float or array of floats
@@ -93,11 +92,16 @@ def k_nearest_neighbours(X: ndarray, Y: ndarray=None, *args, backend='scipy',
         
     i : integer or array of integers
         The index of each neighbor.
-        
+    
+    Raises
+    ------
+    ImportError
+        In the abscence of a usable backend.
+     
     Examples
     --------
-    >>> from dewloosh.geom.rgrid import Grid
-    >>> from dewloosh.geom import KNN
+    >>> from dewloosh.mesh.rgrid import Grid
+    >>> from dewloosh.mesh import KNN
     >>> size = 80, 60, 20
     >>> shape = 10, 8, 4
     >>> grid = Grid(size=size, shape=shape, eshape='H8')
@@ -130,7 +134,7 @@ def k_nearest_neighbours(X: ndarray, Y: ndarray=None, *args, backend='scipy',
             r = max_distance
             d, i = tree.query_radius(Y, r, k=k, **query_kwargs)
     else:
-        raise NotImplementedError
+        raise ImportError("Either `sklearn` or `scipy` must be present for this!")
     return d, i if return_distance else i
 
     
@@ -163,14 +167,13 @@ def points_around(points: np.ndarray, r_max: float, *args,
         
     Returns
     -------
-    if frmt == 'csr'
-        dewloosh.math.linalg.sparse.csr.csr_matrix
-            A numba-jittable sparse matrix format.                      
-    elif frmt == 'dict'
-        numba Dict(int : int[:])
-    elif frmt == 'jagged'
-        dewloosh.math.linalg.sparse.JaggedArray
-            A subclass of `awkward.Array`
+    if frmt = 'csr' : dewloosh.math.linalg.sparse.csr.csr_matrix
+        A numba-jittable sparse matrix format.                      
+    
+    frmt = 'dict' : numba Dict(int : int[:])
+    
+    frmt = 'jagged' : dewloosh.math.linalg.sparse.JaggedArray
+        A subclass of `awkward.Array`
    
     """
     if MT:
@@ -290,14 +293,16 @@ def _cells_around_MT_(centers: np.ndarray, r_max: float, n_max: int=10):
 
 def index_of_closest_point(coords: ndarray, target: ndarray) -> int:
     """
-    Returs the index of the closes point to a target.
+    Returs the index of the closes point to a target location.
     
     Parameters
     ----------
     coords : (nP, nD) numpy.ndarray
         2d float array of vertex coordinates.
-            nP : number of points in the model
-            nD : number of dimensions of the model space
+        
+        nP : number of points in the model
+        
+        nD : number of dimensions of the model space
             
     target : numpy.ndarray
         Coordinate array of the target point.
@@ -316,14 +321,16 @@ def index_of_closest_point(coords: ndarray, target: ndarray) -> int:
 
 def index_of_furthest_point(coords: ndarray, target: ndarray) -> int:
     """
-    Returs the index of the furthest point to a target.
+    Returs the index of the furthest point to a target location.
     
     Parameters
     ----------
     coords : (nP, nD) numpy.ndarray
         2d float array of vertex coordinates.
-            nP : number of points in the model
-            nD : number of dimensions of the model space
+        
+        nP : number of points in the model
+        
+        nD : number of dimensions of the model space
             
     target : numpy.ndarray
         Coordinate array of the target point.
@@ -351,14 +358,18 @@ def points_of_cells(coords: ndarray, topo: ndarray, *args,
     ----------
     coords : (nP, nD) numpy.ndarray
         2d float array of vertex coordinates.
-            nP : number of points in the model
-            nD : number of dimensions of the model space
+               
+        nP : number of points in the model  
+            
+        nD : number of dimensions of the model space
             
     topo : (nE, nNE) numpy.ndarray
         A 2D array of vertex indices. The i-th row contains the vertex indices
         of the i-th element.
-            nE : number of elements
-            nNE : number of nodes per element
+        
+        nE : number of elements
+        
+        nNE : number of nodes per element
             
     local_axes : (..., 3, 3) numpy.ndarray
         Reference frames. A single 3x3 numpy array or matrices for all elements
@@ -372,6 +383,7 @@ def points_of_cells(coords: ndarray, topo: ndarray, *args,
     -----
     It is assumed that all entries in 'coords' are coordinates of
     points in the same frame.
+    
     """
     if local_axes is not None:
         return cells_coords_tr(cells_coords(coords, topo), 
@@ -399,8 +411,7 @@ def cells_coords_tr(ecoords: ndarray, local_axes: ndarray,
 
 @njit(nogil=True, parallel=True, cache=__cache)
 def cells_coords(coords: ndarray, topo: ndarray) -> ndarray:
-    """Returns coordinates of multiple cells.
-
+    """
     Returns coordinates of cells from a coordinate base array and
     a topology array.
 
@@ -408,20 +419,23 @@ def cells_coords(coords: ndarray, topo: ndarray) -> ndarray:
     ----------
     coords : (nP, nD) numpy.ndarray
         2d float array of all vertex coordinates of an assembly.
-            nP : number of points in the model
-            nD : number of dimensions of the model space
+        
+        nP : number of points in the model
+        
+        nD : number of dimensions of the model space
             
     topo : (nE, nNE) numpy.ndarray
         A 2D array of vertex indices. The i-th row contains the vertex indices
         of the i-th element.
-            nE : number of elements
-            nNE : number of nodes per element
+        
+        nE : number of elements
+        
+        nNE : number of nodes per element
 
     Returns
     -------
     (nE, nNE, nD) numpy.ndarray
-        Coordinates for all nodes of all cells according to the
-        argument 'topo'.
+    Coordinates for all nodes of all cells according to the argument 'topo'.
 
     Notes
     -----
@@ -438,6 +452,7 @@ def cells_coords(coords: ndarray, topo: ndarray) -> ndarray:
     True
     >>> print(cell_coords_bulk(coords, topo))
     ...
+    
     """
     nE, nNE = topo.shape
     res = np.zeros((nE, nNE, coords.shape[1]), dtype=coords.dtype)
@@ -452,20 +467,23 @@ cell_coords_bulk = cells_coords
 
 @njit(nogil=True, parallel=True, cache=__cache)
 def cell_coords(coords: ndarray, topo: ndarray) -> ndarray:
-    """Returns coordinates of multiple cells.
-
-    Returns coordinates of cells from a coordinate base array and
-    a topology array.
+    """
+    Returns coordinates of a single cell from a coordinate 
+    array and a topology array.
 
     Parameters
     ----------
     coords : (nP, nD) numpy.ndarray
         Array of all vertex coordinates of an assembly.
-            nP : number of points in the model
-            nD : number of dimensions of the model space
+            
+        nP : number of points in the model
+            
+        nD : number of dimensions of the model space
+    
     topo : (nNE) numpy.ndarray
         1D array of vertex indices.
-            nNE : number of nodes per element
+            
+        nNE : number of nodes per element
 
     Returns
     -------
@@ -506,8 +524,8 @@ def cell_center_2d(ecoords: np.ndarray):
         2d coordinate array of the element. The array has as many rows,
         as the number of nodes of the cell, and two columns.
 
-    Returns:
-    --------
+    Returns
+    -------
     numpy.ndarray
         1d coordinate array
     """
@@ -517,7 +535,8 @@ def cell_center_2d(ecoords: np.ndarray):
 
 @njit(nogil=True, cache=__cache)
 def cell_center(coords: np.ndarray):
-    """Returns the center of a general cell.
+    """
+    Returns the center of a single cell.
 
     Parameters
     ----------
@@ -525,8 +544,8 @@ def cell_center(coords: np.ndarray):
         2d coordinate array of the element. The array has as many rows,
         as the number of nodes of the cell, and three columns.
 
-    Returns:
-    --------
+    Returns
+    -------
     numpy.ndarray
         1d coordinate array
     """
@@ -545,10 +564,11 @@ def cell_center_bulk(coords: ndarray, topo: ndarray) -> ndarray:
     topo : numpy.ndarray
         2d point-based topology array
 
-    Returns:
-    --------
+    Returns
+    -------
     numpy.ndarray
         2d coordinate array
+        
     """
     return np.mean(cell_coords_bulk(coords, topo), axis=1)
 
@@ -652,7 +672,7 @@ def avg_cell_data(data: np.ndarray, topo: np.ndarray, squeeze=True):
 def jacobian_matrix_bulk(dshp: ndarray, ecoords: ndarray):
     """
     Returns Jacobian matrices of local to global transformation 
-    for several finite elements.
+    for several cells.
     
     dshp (nG, nN, nD)
     ecoords  (nE, nNE, nD)
@@ -681,7 +701,7 @@ def jacobian_det_bulk_1d(jac: ndarray):
 @njit(nogil=True, parallel=True, cache=__cache)
 def jacobian_matrix_bulk_1d(dshp: ndarray, ecoords: ndarray):
     """
-    Returns the Jacobian matrix for multiple (nE) elements, evaluated at
+    Returns the Jacobian matrix for multiple cells (nE), evaluated at
     multiple (nP) points.
     ---
     (nE, nP, 1, 1)
@@ -690,6 +710,7 @@ def jacobian_matrix_bulk_1d(dshp: ndarray, ecoords: ndarray):
     -----
     As long as the line is straight, it is a constant metric element,
     and 'dshp' is only required here to provide an output with a correct shape.
+    
     """
     lengths = lengths_of_lines2(ecoords)
     nE = ecoords.shape[0]
@@ -767,6 +788,7 @@ def pcoords_to_coords_1d(pcoords: ndarray, ecoords: ndarray):
     ecoords (nE, 2+, nD)
     ---
     (nE * nP, nD)
+    
     """
     nP = pcoords.shape[0]
     nE = ecoords.shape[0]
@@ -797,4 +819,3 @@ def homogenize_nodal_values(data: ndarray, measure: ndarray):
         for j in prange(nDATA):
             res[i, j] = np.sum(data[i, :, j]) / measure[i]
     return res
-

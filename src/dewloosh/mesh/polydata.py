@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from copy import copy, deepcopy
-from typing import Union, Hashable, Collection, Iterable
+from typing import Union, Hashable, Collection, Iterable, Tuple
 from numpy import ndarray
 import numpy as np
 from awkward import Array as akarray
@@ -16,7 +16,7 @@ from dewloosh.mesh.topo.topo import inds_to_invmap_as_dict, remap_topo_1d
 from .space import CartesianFrame, PointCloud
 from .utils import cells_coords, cells_around, cell_center_bulk
 from .utils import k_nearest_neighbours as KNN
-from .vtkutils import mesh_to_UnstructuredGrid as mesh_to_vtk
+from .vtkutils import mesh_to_UnstructuredGrid as mesh_to_vtk, PolyData_to_mesh
 from .cells import T3 as Triangle, Q4 as Quadrilateral, H8 as Hexahedron, \
     H27 as TriquadraticHexaHedron, Q9, TET10
 from .polyhedron import Wedge
@@ -30,17 +30,18 @@ from .celldata import CellData
 from .config import __hasvtk__, __haspyvista__
 if __hasvtk__:
     import vtk
+
+NoneType = type(None)
+
 if __haspyvista__:
     import pyvista as pv
+    pyVistaLike = Union[pv.PolyData, pv.UnstructuredGrid]
+else:
+    pyVistaLike = NoneType
 
 
 VectorLike = Union[Vector, ndarray]
 TopoLike = Union[ndarray, JaggedArray, akarray, TopologyArray]
-NoneType = type(None)
-
-
-def find_pointdata_in_args(*args):
-    list(filter(lambda i: isinstance(i, PointData)))
 
 
 __all__ = ['PointData']
@@ -50,23 +51,40 @@ class PolyData(DeepDict):
     """
     A class to handle complex polygonal meshes.
 
-    The `PolyData` class is arguably the most important class
-    in the geometry submodule. It manages polygons of different
-    kinds as well their data in a memory efficient way.
+    The `PolyData` class is arguably the most important class in the library 
+    and a backbone of all mesh classes. 
 
     The implementation is based on the `awkward` library, which provides 
     memory-efficient, numba-jittable data classes to deal with dense, sparse, 
     complete or incomplete data. These data structures are managed in pure
     Python by the `DeepDict` class.
 
+    The class accepts several kinds of inputs, allowing for a wide range of
+    possible use cases. The fastes way to create a PolyData is from predefined 
+    `PointData` and `CellData` instances, defined separately.
+
     Parameters
     ----------
+    pd : PolyData, Optional
+        A PolyData instance. Dafault is None.
 
+    cd : CellData, Optional
+        A CellData instance. Dafault is None.
+
+    coords : ndarray, Optional.
+        2d numpy array of floats, describing a pointcloud. Default is None.
+
+    topo : ndarray, Optional.
+        2d numpy array of integers, describing the topology of a polygonal mesh. 
+        Default is None.
+
+    celltype : int, Optional.
+        An integer spcifying a valid celltype.
 
     Examples
     --------
-    >>> from dewloosh.geom import PolyData
-    >>> from dewloosh.geom.rgrid import grid
+    >>> from dewloosh.mesh import PolyData
+    >>> from dewloosh.mesh.rgrid import grid
     >>> size = Lx, Ly, Lz = 100, 100, 100
     >>> shape = nx, ny, nz = 10, 10, 10
     >>> coords, topo = grid(size=size, shape=shape, eshape='H27')
@@ -74,6 +92,13 @@ class PolyData(DeepDict):
     >>> pd['A']['Part1'] = PolyData(topo=topo[:10])
     >>> pd['B']['Part2'] = PolyData(topo=topo[10:-10])
     >>> pd['C']['Part3'] = PolyData(topo=topo[-10:])
+
+    See also
+    --------
+    :class:`dewloosh.mesh.PolyData`
+    :class:`dewloosh.mesh.tri.trimesh.TriMesh`
+    :class:`dewloosh.mesh.pointdata.PointData`
+    :class:`dewloosh.mesh.celldata.CellData`
 
     """
 
@@ -90,6 +115,9 @@ class PolyData(DeepDict):
         3: Triangle,
         27: TriquadraticHexaHedron,
     }
+    _passive_opacity_ = 0.3
+    _active_opacity_ = 1.0
+    _pv_config_key_ = ('pyvista', 'plot')
 
     def __init__(self, pd=None, cd=None, *args, coords=None, topo=None,
                  celltype=None, frame: FrameLike = None, newaxis: int = 2,
@@ -100,6 +128,8 @@ class PolyData(DeepDict):
         self._frame = frame
         self._newaxis = newaxis
         self._parent = parent
+        self._config = DeepDict()
+        self._init_config_()
 
         if isinstance(pd, PointData):
             self.pointdata = pd
@@ -109,6 +139,8 @@ class PolyData(DeepDict):
             self.celldata = pd
             if isinstance(cd, PointData):
                 self.pointdata = cd
+        elif isinstance(cd, CellData):
+            self.celldata = cd
 
         super().__init__(*args, **kwargs)
 
@@ -129,6 +161,8 @@ class PolyData(DeepDict):
             if celltype is None:
                 celltype = self.__class__._cell_classes_.get(
                     topo.shape[1], None)
+            elif isinstance(celltype, int):
+                raise NotImplementedError
             if not issubclass(celltype, CellData):
                 raise TypeError("Invalid cell type <{}>".format(celltype))
 
@@ -146,6 +180,168 @@ class PolyData(DeepDict):
         if self.celldata is not None:
             self.celltype = self.celldata.__class__
 
+    def __copy__(self, memo=None):
+        cls = self.__class__
+        result = cls(frame=self.frame)
+        cfoo = copy if not memo is None else deepcopy
+        if memo is not None:
+            memo[id(self)] = result
+        # self
+        pointcls = cls._point_class_
+        cellcls = self.celltype
+        framecls = self._frame_class_
+        if self.pointdata is not None:
+            f = self.frame
+            ax = cfoo(f.axes)
+            if memo is not None:
+                memo[id(f.axes)] = ax
+            frame = framecls(ax, f.parent, order=f.order)
+            db = cfoo(self.pd.db)
+            if memo is not None:
+                memo[id(self.pd.db)] = db
+            result.pointdata = pointcls(
+                frame=frame,
+                db=db
+            )
+        if self.celldata is not None:
+            pd = self.source()
+            assert pd is not None
+            db = cfoo(self.cd.db)
+            if memo is not None:
+                memo[id(self.cd.db)] = db
+            result.celldata = cellcls(
+                pointdata=pd,
+                db=db
+            )
+        for k, v in self.items():
+            if not isinstance(v, PolyData):
+                v_ = cfoo(v)
+                if memo is not None:
+                    memo[id(v)] = v_
+                result[k] = v
+
+        # children
+        l0 = len(self.address)
+        for b in self.blocks(inclusive=False):
+            pd, cd = None, None
+            addr = b.address
+            if len(addr) > l0:
+                # pointdata
+                if b.pointdata is not None:
+                    f = b.frame
+                    ax = cfoo(f.axes)
+                    if memo is not None:
+                        memo[id(f.axes)] = ax
+                    frame = framecls(ax, f.parent, order=f.order)
+                    db = cfoo(b.pd.db)
+                    if memo is not None:
+                        memo[id(b.pd.db)] = db
+                    pd = pointcls(
+                        frame=frame,
+                        db=db
+                    )
+                # celldata
+                if b.celldata is not None:
+                    cellcls = b.celltype
+                    db = cfoo(b.cd.db)
+                    if memo is not None:
+                        memo[id(b.cd.db)] = db
+                    cd = cellcls(
+                        pointdata=b.source(),
+                        db=db
+                    )
+                    ct = b.celltype
+                result[addr[l0:]] = PolyData(pd, cd, celltype=ct)
+                # other data
+                for k, v in b.items():
+                    if not isinstance(v, PolyData):
+                        v_ = cfoo(v)
+                        if memo is not None:
+                            memo[id(v)] = v_
+                        b[k] = v
+
+        result.__dict__.update(self.__dict__)
+        return result
+
+    def simplify(self):
+        pass
+
+    def __deepcopy__(self, memo):
+        return self.__copy__(memo)
+
+    @classmethod
+    def from_source(cls, *args, **kwargs):
+        raise NotImplementedError
+        list(filter(lambda i: isinstance(i, PointData)))
+
+    @classmethod
+    def from_pv(cls, pvobj: pyVistaLike) -> 'PolyData':
+        """
+        Returns a :class:`dewloosh.mesh.PolyData` instance from 
+        a `pyvista.PolyData` or a `pyvista.UnstructuredGrid` instance.
+
+        """
+        celltypes = cls._cell_classes_.values()
+        vtk_to_celltype = {v.vtkCellType: v for v in celltypes}
+
+        if isinstance(pvobj, pv.PolyData):
+            coords, topo = PolyData_to_mesh(pvobj)
+            if isinstance(topo, dict):
+                cells_dict = topo
+            elif isinstance(topo, ndarray):
+                ct = cls._cell_classes_[topo.shape[-1]]
+                cells_dict = {ct.vtkCellType: topo}
+        elif isinstance(pvobj, pv.UnstructuredGrid):
+            ugrid = pvobj.cast_to_unstructured_grid()
+            coords = pvobj.points.astype(float)
+            cells_dict = ugrid.cells_dict
+
+        A = CartesianFrame(dim=3)
+        pd = PolyData(coords=coords, frame=A)  # this fails without a frame
+
+        for vtkid, vtktopo in cells_dict.items():
+            if vtkid in vtk_to_celltype:
+                if vtkid == 5:
+                    pass  # 3-noded triangles
+                if vtkid == 10:
+                    pass  # 10-noded tetrahedrons
+                ct = vtk_to_celltype[vtkid]
+                pd[vtkid] = PolyData(topo=vtktopo, celltype=ct)
+            else:
+                msg = "The element type with vtkId <{}> is not jet supported here."
+                raise NotImplementedError(msg.format(vtkid))
+
+        return pd
+
+    @property
+    def config(self):
+        """
+        Returns the configuration object.
+
+        Examples
+        --------
+        Assume `mesh` is a proper `PolyData` instance. Then to
+        set configuration values related to plotting with `pyVista`,
+        do the following:
+
+        >>> mesh.config['pyvista', 'plot', 'color'] = 'red'
+        >>> mesh.config['pyvista', 'plot', 'style'] = 'wireframe'
+
+        Then, when it comes to plotting, you can specify your configuration
+        with the `config_key` keyword argument:
+
+        >>> mesh.pvplot(config_key=('pyvista', 'plot'))
+
+        This way, you can store several different configurations for different
+        scenarios.
+
+        """
+        return self._config
+    
+    def _init_config_(self):
+        key = self.__class__._pv_config_key_
+        self.config[key]['show_edges'] = False
+
     @property
     def pim(self) -> 'IndexManager':
         return self.point_index_manager
@@ -156,14 +352,17 @@ class PolyData(DeepDict):
 
     @property
     def parent(self) -> 'PolyData':
+        """Returns the parent of the object."""
         return self._parent
 
     @parent.setter
     def parent(self, value: 'PolyData'):
+        """Sets the parent."""
         self._parent = value
 
     @property
-    def address(self):
+    def address(self) -> Tuple:
+        """Returns the address of an item."""
         if self.is_root():
             return []
         else:
@@ -194,6 +393,10 @@ class PolyData(DeepDict):
         ----------
         key : str
             A valid key in any of the blocks with data. Default is None.
+
+        See Also
+        --------
+        :class:`dewloosh.mesh.PolyData`
 
         """
         key = 'x' if key is None else key
@@ -228,11 +431,11 @@ class PolyData(DeepDict):
     @property
     def pd(self):
         return self.pointdata
-    
+
     @property
     def cd(self):
         return self.celldata
-    
+
     @property
     def point_fields(self):
         """
@@ -265,7 +468,7 @@ class PolyData(DeepDict):
 
     @property
     def frame(self) -> FrameLike:
-        """Returns the frame of the points."""
+        """Returns the frame of the underlying pointcloud."""
         if self.is_root():
             if self._frame is not None:
                 return self._frame
@@ -331,9 +534,7 @@ class PolyData(DeepDict):
             [c.rewire(deep=False) for c in self.cellblocks(inclusive=True)]
 
     def to_standard_form(self):
-        """
-        Transforms the problem to standard form.
-        """
+        """Transforms the problem to standard form."""
         if not self.is_root():
             raise NotImplementedError
 
@@ -393,7 +594,12 @@ class PolyData(DeepDict):
 
     def points(self, *args, return_inds=False, from_cells=False, **kwargs) -> PointCloud:
         """
-        Returns the points as a `PointCloud` object.
+        Returns the points as a :class:`dewloosh.mesh.space.PointCloud` instance.
+
+        See Also
+        --------
+        :class:`dewloosh.mesh.space.PointCloud`
+        :func:`coords`
 
         """
         frame = self.frame
@@ -518,25 +724,34 @@ class PolyData(DeepDict):
             return cells_around(self.centers(), radius, frmt=frmt)
 
     def nodal_adjacency_matrix(self, *args, **kwargs):
-        """Returns the nodal adjecency matrix."""
+        """
+        Returns the nodal adjecency matrix. The arguments are 
+        forwarded to the corresponding utility function (see below)
+        alongside the topology of the mesh as the first argument.
+
+        See also
+        --------
+        :func:`dewloosh.mesh.topo.topo.nodal_adjacency`
+
+        """
         topo = self.topology()
         return nodal_adjacency(topo, *args, **kwargs)
 
-    def number_of_cells(self):
+    def number_of_cells(self) -> int:
         """Returns the number of cells."""
         blocks = self.cellblocks(inclusive=True)
         return np.sum(list(map(lambda i: len(i.celldata), blocks)))
 
-    def number_of_points(self):
+    def number_of_points(self) -> int:
         """Returns the number of points"""
         return len(self.root().pointdata)
 
-    def cells_coords(self, *args, _topo=None, **kwargs):
+    def cells_coords(self, *args, _topo=None, **kwargs) -> ndarray:
         """Returns the coordiantes of the cells in extrensic format."""
         _topo = self.topology() if _topo is None else _topo
         return cells_coords(self.root().coords(), _topo)
 
-    def center(self, target: FrameLike = None):
+    def center(self, target: FrameLike = None) -> ndarray:
         """Returns the center of the pointcloud of the mesh."""
         if self.is_root():
             return self.points().center(target)
@@ -546,7 +761,7 @@ class PolyData(DeepDict):
             pc = root.points()[inds]
             return pc.center(target)
 
-    def centers(self, *args, target: FrameLike = None, **kwargs):
+    def centers(self, *args, target: FrameLike = None, **kwargs) -> ndarray:
         """Returns the centers of the cells."""
         if self.is_root():
             coords = self.points().show(target)
@@ -557,8 +772,11 @@ class PolyData(DeepDict):
             coords = pc.show(target)
         return cell_center_bulk(coords, self.topology(*args, **kwargs))
 
-    def centralize(self, target: FrameLike = None):
-        """Centralizes the coordinats of the pointcloud of the mesh."""
+    def centralize(self, target: FrameLike = None) -> 'PolyData':
+        """
+        Centralizes the coordinats of the pointcloud of the mesh
+        and returns the object for continuation.
+        """
         pc = self.root().points()
         pc.centralize(target)
         self.pointdata['x'] = pc.show(self.frame)
@@ -576,7 +794,7 @@ class PolyData(DeepDict):
         knn_options = {} if knn_options is None else knn_options
         return KNN(c, c, k=k, **knn_options)
 
-    def areas(self, *args, **kwargs):
+    def areas(self, *args, **kwargs) -> ndarray:
         """Returns the areas."""
         coords = self.root().coords()
         blocks = self.cellblocks(*args, inclusive=True, **kwargs)
@@ -584,26 +802,26 @@ class PolyData(DeepDict):
         amap = map(lambda b: b.celldata.areas(coords=coords), blocks2d)
         return np.concatenate(list(amap))
 
-    def area(self, *args, **kwargs):
+    def area(self, *args, **kwargs) -> float:
         """Returns the sum of areas in the model."""
         return np.sum(self.areas(*args, **kwargs))
 
-    def volumes(self, *args, **kwargs):
+    def volumes(self, *args, **kwargs) -> ndarray:
         """Returns the volumes of the cells."""
         coords = self.root().coords()
         blocks = self.cellblocks(*args, inclusive=True, **kwargs)
         vmap = map(lambda b: b.celldata.volumes(coords=coords), blocks)
         return np.concatenate(list(vmap))
 
-    def volume(self, *args, **kwargs):
+    def volume(self, *args, **kwargs) -> float:
         """Returns the net volume of the mesh."""
         return np.sum(self.volumes(*args, **kwargs))
 
-    def index_of_closest_point(self, target, *args, **kwargs):
+    def index_of_closest_point(self, target, *args, **kwargs) -> int:
         """Returns the index of the closest point to a target."""
         return index_of_closest_point(self.coords(), target)
 
-    def index_of_closest_cell(self, target, *args, **kwargs):
+    def index_of_closest_cell(self, target, *args, **kwargs) -> int:
         """Returns the index of the closest cell to a target."""
         return index_of_closest_point(self.centers(), target)
 
@@ -612,7 +830,7 @@ class PolyData(DeepDict):
 
     def nodal_distribution_factors(self, *args, assume_regular=False,
                                    key='ndf', store=False, measure='volume',
-                                   load=None, weights=None, **kwargs):
+                                   load=None, weights=None, **kwargs) -> ndarray:
         if load is not None:
             if isinstance(load, str):
                 blocks = self.cellblocks(inclusive=True)
@@ -645,7 +863,7 @@ class PolyData(DeepDict):
         """
         Returns the mesh as a `vtk` oject, and optionally fetches
         data.
-        
+
         """
         if not __hasvtk__:
             raise ImportError
@@ -691,17 +909,19 @@ class PolyData(DeepDict):
     def to_pv(self, *args, fuse=True, deep=True, scalars=None, **kwargs):
         """
         Returns the mesh as a `pyVista` oject, optionally set up with data.
-        
+
         """
         if not __haspyvista__:
             raise ImportError
+        data = None
         if isinstance(scalars, str) and not fuse:
-            vtkobj, data = self.to_vtk(*args, fuse=fuse, deep=deep,
+            vtkobj, data = self.to_vtk(*args, fuse=False, deep=deep,
                                        scalars=scalars, **kwargs)
         else:
             vtkobj = self.to_vtk(*args, fuse=fuse, deep=deep, **kwargs)
             data = None
         if fuse:
+            assert data is None
             multiblock = pv.wrap(vtkobj)
             try:
                 multiblock.wrap_nested()
@@ -720,20 +940,49 @@ class PolyData(DeepDict):
                     res.append(pvobj)
                 return res
 
-    def plot(self, *args, deepcopy=True, jupyter_backend='pythreejs',
-             show_edges=True, notebook=False, theme='document',
-             scalars=None, **kwargs):
+    def plot(self, *args, **kwargs):
+        return self.pvplot(*args, **kwargs)
+
+    def pvplot(self, *args, deepcopy=True, jupyter_backend='pythreejs',
+               show_edges=True, notebook=False, theme='document',
+               scalars=None, window_size=None, return_plotter=False,
+               config_key=None, plotter=None, **kwargs):
         if not __haspyvista__:
-            raise ImportError
-        if theme is not None:
-            pv.set_plot_theme(theme)
-        poly = self.to_pv(deepcopy=deepcopy, sclars=scalars)
-        if notebook:
-            return poly.plot(*args, jupyter_backend=jupyter_backend,
-                             show_edges=show_edges, notebook=notebook, **kwargs)
+            raise ImportError('You need to install `pyVista` for this.')
+        if scalars is None:
+            polys = self.to_pv(deepcopy=deepcopy, fuse=False)
         else:
-            poly.plot(*args, show_edges=show_edges, notebook=notebook,
-                      **kwargs)
+            polys = self.to_pv(deepcopy=deepcopy, scalars=scalars, fuse=False)
+        
+        if isinstance(theme, str):
+            # pvparams.update(theme=theme)
+            pv.set_plot_theme(theme)
+        
+        if plotter is None:
+            pvparams = dict()
+            if window_size is not None:
+                pvparams.update(window_size=window_size)
+            pvparams.update(kwargs)
+            if notebook:
+                pvparams.update(notebook=True)
+            plotter = pv.Plotter(**pvparams)
+        else:
+            return_plotter = True
+            
+        pvparams = dict(show_edges=show_edges)
+        blocks = self.cellblocks(inclusive=True, deep=True)
+        if config_key is None:
+            config_key = self.__class__._pv_config_key_
+        for block, poly in zip(blocks, polys):
+            params = copy(pvparams)
+            params.update(block.config[config_key])
+            plotter.add_mesh(poly, **params)
+        if return_plotter:
+            return plotter
+        if notebook:
+            return plotter.show(jupyter_backend=jupyter_backend)
+        else:
+            return plotter.show(jupyter_backend='none')
 
     def __join_parent__(self, parent: DeepDict, key: Hashable = None):
         super().__join_parent__(parent, key)

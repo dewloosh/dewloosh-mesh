@@ -35,6 +35,10 @@ def dshp_CST():
 
 
 class T3(Triangle):
+    """
+    A class to handle 3-noded triangles.
+    
+    """
 
     @classmethod
     def lcoords(cls, *args, **kwargs):

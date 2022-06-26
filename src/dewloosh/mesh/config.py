@@ -47,8 +47,8 @@ def set_config_file(filepath):
         __haspyvista__ = False
     
     config = configparser.ConfigParser()
-    config['geom'] = {}
-    config['geom']['vtk'] = __hasvtk__
-    config['geom']['vista'] = __haspyvista__
+    config['mesh'] = {}
+    config['mesh']['vtk'] = __hasvtk__
+    config['mesh']['vista'] = __haspyvista__
     with open('config.ini', 'w') as configfile:
         config.write(configfile)

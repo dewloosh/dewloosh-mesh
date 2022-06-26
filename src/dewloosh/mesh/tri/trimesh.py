@@ -16,13 +16,30 @@ from ..topo.tr import T3_to_T6
 class TriMesh(PolyData):
     """
     A class to handle triangular meshes.
+    
+    Parameters
+    ----------
+    points : ndarray, Optional.
+        2d numpy array of floats, describing a pointcloud. Default is None.
+
+    triangles : ndarray, Optional.
+        2d numpy array of integers, describing the topology of a polygonal mesh. 
+        Default is None.
+        
+    Notes
+    -----
+    See the PolyData class for the rest of the possible arguments to the 
+    creator of this class. Note that, `points` and `triangles` are aliases
+    to `coords` and `topo`, but the original terminology is still available. 
 
     Examples
     --------
     Triangulate a rectangle of size 800x600 with a subdivision of 10x10
     and calculate the area
 
-    >>> trimesh = TriMesh(size=(800, 600), shape=(10, 10))
+    >>> from dewloosh.mesh import TriMesh, CartesianFrame
+    >>> A = CartesianFrame(dim=3)
+    >>> trimesh = TriMesh(size=(800, 600), shape=(10, 10), frame=A)
     >>> trimesh.area()
     480000.0
 
@@ -38,11 +55,20 @@ class TriMesh(PolyData):
     >>> trimesh.normals()
     >>> trimesh.is_planar()
     True
-
+    
+    See Also
+    --------
+    :class:`dewloosh.mesh.polydata.PolyData`
+    :class:`dewloosh.mesh.space.frame.CartesianFrame`
+    
     """
+    
+    _cell_classes_ = {
+        3: T3,
+        6: T6,
+    }
 
-    def __init__(self, *args,  points=None, triangles=None,
-                 celltype=None, frame=None, newaxis: int = 2, **kwargs):
+    def __init__(self, *args,  points=None, triangles=None, **kwargs):
         # parent class handles pointdata and celldata creation
         points = points if points is not None else \
             kwargs.get('coords', None)
@@ -66,19 +92,17 @@ class TriMesh(PolyData):
         if triangles.shape[1] == 3 and celltype.NNODE == 6:
             points, triangles = T3_to_T6(points, triangles)
         assert triangles.shape[1] == celltype.NNODE
-        super().__init__(*args, coords=points, topo=triangles, celltype=celltype,
-                         frame=frame, newaxis=newaxis, **kwargs)
-        self._newaxis = newaxis
-
-    def axes(self):
+        super().__init__(*args, coords=points, topo=triangles, **kwargs)
+        
+    def axes(self) -> np.ndarray:
         """
-        Returns the normalized coordinate frames of triangles.
+        Returns the normalized coordinate frames of triangles as a 3d numpy array.
         """
         return frames_of_surfaces(self.coords(), self.topology())
 
-    def normals(self):
+    def normals(self) ->np.ndarray:
         """
-        Retuns the surface normals.
+        Retuns the surface normals as a 2d numpy array.
         """
         return ascont(self.axes()[:, self._newaxis, :])
 
@@ -88,7 +112,7 @@ class TriMesh(PolyData):
         """
         return is_planar(self.normals())
 
-    def extrude(self, *args, celltype=None, h=None, N=None, **kwargs):
+    def extrude(self, *args, celltype=None, h=None, N=None, **kwargs) -> PolyData:
         """
         Exctrude mesh perpendicular to the plane of the triangulation.
         The target element type can be specified with the `celltype` argument.
@@ -105,9 +129,13 @@ class TriMesh(PolyData):
         -------
         TetMesh
             A tetrahedral mesh.
-
+            
+        See Also
+        --------
+        :class:`dewloosh.mesh.tet.tetmesh.TetMesh`
+        
         """
-        from dewloosh.geom.tet.tetmesh import TetMesh
+        from dewloosh.mesh.tet.tetmesh import TetMesh
         if not self.is_planar():
             raise RuntimeError("Only planar surfaces can be extruded!")
         assert celltype is None, "Currently only TET4 element is supported!"
@@ -134,9 +162,10 @@ class TriMesh(PolyData):
         numpy.ndarray
             Integer array of indices, representing point indices of edges.
 
-        numpy.ndarray
+        numpy.ndarray, Optional
             Integer array of indices, that together with the edge data 
             reconstructs the topology.
+            
         """
         edges, IDs = unique_topo_data(edges_tri(self.topology()))
         if return_cells:

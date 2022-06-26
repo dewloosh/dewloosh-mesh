@@ -22,9 +22,31 @@ class CartesianFrame(ReferenceFrame):
 
     It builds on top of `ReferenceFrame` from `dewloosh.math`, but adds
     the contept of 'origo', and some other applications related to the field.
-
-    Examples
+    
+    See Also
     --------
+    :class:`~dewloosh.math.linalg.frame.frame.ReferenceFrame`
+                
+    Parameters
+    ----------
+    axes : ndarray, Optional.
+        2d numpy array of floats specifying cartesian reference frames.
+        Dafault is None.
+    
+    dim : int, Optional
+        Dimension of the mesh. Deafult is 3.
+        
+    origo : ndarray, Optional.
+        The origo of the mesh. Default is the zero vector.
+        
+    Note
+    ----
+    See the documentation of `dewloosh.math.ReferenceFrame` for more control over
+    object creation. However, if your problem not very extreme in some sense, 
+    you are probably good to goo only by following the examples.    
+
+    Example
+    -------
     Define a standard Cartesian frame and rotate it around axis 'Z'
     with an amount of 180 degrees:
 
@@ -41,7 +63,15 @@ class CartesianFrame(ReferenceFrame):
     in B like B looks in A)
 
     >>> C = CartesianFrame(B.axes, parent=B)
-
+    
+    Then, the *DCM from A to B* , that is :math:`^{A}\mathbf{R}^{B}` would be
+    
+    >>> A_R_B = B.dcm(source=A)
+    
+    or equivalently
+    
+    >>> A_R_B = A.dcm(target=A)
+    
     """
 
     def __init__(self, axes=None, *args, dim=3, origo=None, **kwargs):

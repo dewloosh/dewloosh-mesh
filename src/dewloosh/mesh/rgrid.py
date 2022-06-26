@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+from typing import Tuple
 import numpy as np
+from numpy import ndarray
 from numba import njit, prange
 
 from .topo.tr import transform_topo
@@ -9,11 +11,11 @@ from .polydata import PolyData
 __cache = True
 
 
-__all__ = ['grid', 'Grid']
+__all__ = ['grid', 'gridQ4', 'gridQ9', 'gridH8', 'gridH27', 'Grid']
 
 
 def grid(*args, size=None, shape=None, eshape=None, shift=None, start=0,
-         bins=None, centralize=False, **kwargs):
+         bins=None, centralize=False, **kwargs) -> Tuple[ndarray, ndarray]:
     """
     Crates a 1d, 2d or 3d grid for different patterns.
     
@@ -28,25 +30,45 @@ def grid(*args, size=None, shape=None, eshape=None, shift=None, start=0,
         A 2-tuple, describing subdivisions along coordinate directions \n
         Should be provided alongside `size`.
         
+    eshape : str or Tuple, Optional
+        This specifies element shape. 
+        Supported strings are thw following:
+        
+        'Q4' : 4-noded quadrilateral
+           
+        'Q9' : 9-noded quadrilateral
+          
+        'H8' : 8-noded hexagon
+            
+        'H27' : 27-noded hexagon
+        
     shift: numpy.ndarray, Optional
         1d float array, specifying a translation.
                 
     start : index, Optional
-        Startin value for node numbering. Default is 0.
+        Starting value for node numbering. Default is 0.
         
     bins : numpy.ndarray, Optional
         Numpy array or an iterable of numy arrays.
         
     centralize : bool, Optional
         If True, the returned coordinates are centralized.
-        
+           
+    Notes
+    -----
+    1) The returned topology may not be compliant with vtk. If you want to use
+    the results of this call to build a vtk model, you have to account for this.
+    Optinally, you can use the dedicated grid generation routines of this module.
+    
+    2) If you"d rather get the result as a `PolyData`, use the `Grid` class.
+    
     Returns
     -------
     numpy.ndarray
-        Coordinate array.
-        
+        A numpy float array of coordinates.
+    
     numpy.ndarray
-        Topology array.
+        A numpy integer array describing the topology.
     
     Examples
     --------
@@ -55,6 +77,22 @@ def grid(*args, size=None, shape=None, eshape=None, shift=None, start=0,
     >>> size = 80, 60, 20
     >>> shape = 8, 6, 2
     >>> mesh = (coords, topo) = grid(size=size, shape=shape, eshape='H8')
+    
+    Create a mesh of 4-noded quadrilaterals
+    
+    >>> gridparams = {
+    >>>     'size' : (1200, 600),
+    >>>     'shape' : (30, 15),
+    >>>     'eshape' : (2, 2),
+    >>>     'origo' : (0, 0),
+    >>>     'start' : 0
+    >>> }
+    >>> coordsQ4, topoQ4 = grid(**gridparams)
+    
+    The same mesh with 6-noded quadrialterals, 2 in x direction, 3 in y direction
+    
+    >>> gridparams['eshape'] = (2, 3)
+    >>> coordsQ4, topoQ4 = grid(**gridparams)
     
     """
     if size is not None:
@@ -108,25 +146,73 @@ def grid(*args, size=None, shape=None, eshape=None, shift=None, start=0,
     return coords, topo
 
 
-def gridQ4(*args, **kwargs):
+def gridQ4(*args, **kwargs) -> Tuple[ndarray, ndarray]:
+    """
+    Customized version of `grid` dedicated to Q4 elements.
+    It returns a topology with vtk-compliant node numbering.
+    
+    In terms of parameters, this function have to be called the
+    same way `grid` would be called, except the parameter
+    `eshape` being obsolete.
+       
+    Examples
+    --------    
+    Creating a mesh  a mesh of 4-noded quadrilaterals
+    
+    >>> gridparams = {
+    >>>     'size' : (1200, 600),
+    >>>     'shape' : (30, 15),
+    >>>     'origo' : (0, 0),
+    >>>     'start' : 0
+    >>> }
+    >>> coordsQ4, topoQ4 = gridQ4(**gridparams)
+        
+    """
     coords, topo = grid(*args, eshape=(2, 2), **kwargs)
     path = np.array([0, 2, 3, 1], dtype=int)
     return coords, transform_topo(topo, path)
 
 
-def gridQ9(*args, **kwargs):
+def gridQ9(*args, **kwargs) -> Tuple[ndarray, ndarray]:
+    """
+    Customized version of `grid` dedicated to Q9 elements.
+    It returns a topology with vtk-compliant node numbering.
+    
+    In terms of parameters, this function have to be called the
+    same way `grid` would be called, except the parameter
+    `eshape` being obsolete.
+            
+    """
     coords, topo = grid(*args, eshape=(3, 3), **kwargs)
     path = np.array([0, 6, 8, 2, 3, 7, 5, 1, 4], dtype=int)
     return coords, transform_topo(topo, path)
 
 
-def gridH8(*args, **kwargs):
+def gridH8(*args, **kwargs) -> Tuple[ndarray, ndarray]:
+    """
+    Customized version of `grid` dedicated to H8 elements.
+    It returns a topology with vtk-compliant node numbering.
+    
+    In terms of parameters, this function have to be called the
+    same way `grid` would be called, except the parameter
+    `eshape` being obsolete.
+            
+    """
     coords, topo = grid(*args, eshape=(2, 2, 2), **kwargs)
     path = np.array([0, 4, 6, 2, 1, 5, 7, 3], dtype=int)
     return coords, transform_topo(topo, path)
 
 
-def gridH27(*args, **kwargs):
+def gridH27(*args, **kwargs) -> Tuple[ndarray, ndarray]:
+    """
+    Customized version of `grid` dedicated to H27 elements.
+    It returns a topology with vtk-compliant node numbering.
+    
+    In terms of parameters, this function have to be called the
+    same way `grid` would be called, except the parameter
+    `eshape` being obsolete.
+            
+    """
     coords, topo = grid(*args, eshape=(3, 3, 3), **kwargs)
     path = np.array([0, 18, 24, 6, 2, 20, 26, 8, 9, 21, 15, 3, 11, 23, 17, 5,
                      1, 19, 25, 7, 4, 22, 10, 16, 12, 14, 13], dtype=int)

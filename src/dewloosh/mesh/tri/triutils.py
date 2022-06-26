@@ -67,7 +67,23 @@ def center_tri_3d(ecoords: np.ndarray):
 @njit(nogil=True, cache=__cache)
 def area_tri(ecoords: np.ndarray):
     """
-    Returns the the signed area of a 3-noded triangle.
+    Returns the the signed area of a single 3-noded triangle.
+    
+    Parameters
+    ----------
+    ecoords : numpy.ndarray
+        Element coordinates, see the example.
+    
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+    
+    Returns
+    -------
+    float
+        Returns a positive number if the vertices are listed counterclockwise,
+        negative if they are listed clockwise.
+        
     """
     A = (ecoords[1, 0]*ecoords[2, 1] - ecoords[2, 0]*ecoords[1, 1]) + \
         (ecoords[2, 0]*ecoords[0, 1] - ecoords[0, 0]*ecoords[2, 1]) + \
@@ -78,7 +94,12 @@ def area_tri(ecoords: np.ndarray):
 @njit(nogil=True, cache=__cache)
 def inscribed_radius(ecoords: ndarray):
     """
-    Returns the radious of the inscribed circle of a triangle.
+    Returns the radius of the inscribed circle of a single triangle.
+    
+    Parameters
+    ----------
+    ecoords : numpy.ndarray
+        2d float numpy array of element coordinates.
     
     Notes
     -----
@@ -87,6 +108,13 @@ def inscribed_radius(ecoords: ndarray):
     given using the following:
     
         r2 = (s - a)*(s - b)*(s - c) / s.
+        
+    This function is numba-jittable in 'nopython' mode.
+    
+    Returns
+    -------
+    float
+    
     """
     a = norm(ecoords[1] - ecoords[0])
     b = norm(ecoords[2] - ecoords[1])
@@ -98,8 +126,22 @@ def inscribed_radius(ecoords: ndarray):
 @njit(nogil=True, parallel=True, cache=__cache)
 def inscribed_radii(ecoords: ndarray):
     """
-    Returns the radii of the inscribed circle of many triangles.
+    Returns the radii of the inscribed circle of several triangles.
     
+    Parameters
+    ----------
+    ecoords : numpy.ndarray
+        3d float numpy array of element coordinates for multiple cells.
+        
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+        
+    Returns
+    -------
+    numpy.ndarray
+        1d numpy float array
+        
     """
     nE = ecoords.shape[0]
     res = np.zeros(nE)
@@ -110,6 +152,24 @@ def inscribed_radii(ecoords: ndarray):
 
 @njit(nogil=True, parallel=True, cache=__cache)
 def areas_tri(ecoords: np.ndarray):
+    """
+    Returns the total sum of signed areas of several triangles.
+    
+    Parameters
+    ----------
+    ecoords : numpy.ndarray
+        3d float numpy array of element coordinates for multiple cells.
+        
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+        
+    Returns
+    -------
+    float
+        The sum of areas of all triangles.
+        
+    """
     A = 0.
     nE = len(ecoords)
     for i in prange(nE):
@@ -124,6 +184,24 @@ def areas_tri(ecoords: np.ndarray):
 
 @njit(nogil=True, parallel=True, cache=__cache)
 def area_tri_bulk(ecoords: np.ndarray):
+    """
+    Returns the signed area of several triangles.
+    
+    Parameters
+    ----------
+    ecoords : numpy.ndarray
+        3d float numpy array of element coordinates for multiple cells.
+        
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+        
+    Returns
+    -------
+    numpy.ndarray
+        1d numpy float array
+        
+    """
     nE = len(ecoords)
     res = np.zeros(nE, dtype=ecoords.dtype)
     for i in prange(nE):
@@ -138,22 +216,54 @@ def area_tri_bulk(ecoords: np.ndarray):
 
 @vectorize("f8(f8, f8, f8, f8, f8, f8)", target='parallel', cache=__cache)
 def area_tri_u(x1, y1, x2, y2, x3, y3):
+    """
+    Vectorized implementation of `area_tri_bulk`.
+    
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+    
+    """
     return (x2*y3 - x3*y2 + x3*y1 - x1*y3 + x1*y2 - x2*y1)/2
 
 
 @vectorize("f8(f8, f8, f8, f8, f8, f8)", target='parallel', cache=__cache)
 def area_tri_u2(x1, x2, x3, y1, y2, y3):
+    """
+    Another vectorized implementation of `area_tri_bulk` with a different
+    order of arguments.
+    
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+        
+    """
     return (x2*y3 - x3*y2 + x3*y1 - x1*y3 + x1*y2 - x2*y1)/2
 
 
 @njit(nogil=True, cache=__cache)
-def loc_to_glob_tri(lcoord: np.ndarray, gcoords: np.ndarray,
-                    dtype=np.float32):
-    return gcoords.T @ shp_tri_loc(lcoord, dtype)
+def loc_to_glob_tri(lcoord: np.ndarray, gcoords: np.ndarray):
+    """
+    Transformation from local to global coordinates within a triangle.
+    
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+    
+    """
+    return gcoords.T @ shp_tri_loc(lcoord)
 
 
 @njit(nogil=True, cache=__cache)
 def glob_to_loc_tri(gcoord: np.ndarray, gcoords: np.ndarray):
+    """
+    Transformation from global to local coordinates within a triangle.
+    
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+    
+    """
     monoms = monoms_tri_loc_bulk(gcoords)
     coeffs = np.linalg.inv(monoms)
     shp = coeffs @ monoms_tri_loc(gcoord)
@@ -162,6 +272,14 @@ def glob_to_loc_tri(gcoord: np.ndarray, gcoords: np.ndarray):
 
 @njit(nogil=True, cache=__cache)
 def glob_to_nat_tri(gcoord: np.ndarray, ecoords: np.ndarray):
+    """
+    Transformation from global to natural coordinates within a triangle.
+    
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+    
+    """
     x, y = gcoord[0:2]
     (x1, x2, x3), (y1, y2, y3) = ecoords[:, 0], ecoords[:, 1]
     A2 = np.abs(x2*(y3-y1) + x1*(y2-y3) + x3*(y1-y2))
@@ -172,22 +290,45 @@ def glob_to_nat_tri(gcoord: np.ndarray, ecoords: np.ndarray):
 
 @njit(nogil=True, cache=__cache)
 def nat_to_glob_tri(ncoord: np.ndarray, ecoords: np.ndarray):
+    """
+    Transformation from natural to global coordinates within a triangle.
+    
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+    
+    """
     return ecoords.T @ ncoord
 
 
 @njit(nogil=True, cache=__cache)
 def loc_to_nat_tri(lcoord: np.ndarray):
+    """
+    Transformation from local to natural coordinates within a triangle.
+    
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+    
+    """
     return shp_tri_loc(lcoord)
 
 
 @njit(nogil=True, cache=__cache)
 def nat_to_loc_tri(acoord: np.ndarray):
+    """
+    Transformation from natural to local coordinates within a triangle.
+    
+    Notes
+    -----
+    This function is numba-jittable in 'nopython' mode.
+    
+    """
     return lcoords_tri.T @ acoord
 
 
 @njit(nogil=True, parallel=True, cache=__cache)
-def localize_points(points: ndarray, triangles: ndarray, 
-                    coords: ndarray):
+def localize_points(points: ndarray, triangles: ndarray, coords: ndarray):
     nE = triangles.shape[0]
     nC = coords.shape[0]
     ecoords = cells_coords(points, triangles)
@@ -328,8 +469,8 @@ def tri_glob_to_loc(points: np.ndarray, triangles: np.ndarray):
   
     
 if __name__ == '__main__':
-    from dewloosh.geom.tri import triangulate
-    from dewloosh.geom.space.utils import frames_of_surfaces, \
+    from dewloosh.mesh.tri.triang import triangulate
+    from dewloosh.mesh.space.utils import frames_of_surfaces, \
         is_planar_surface
     from dewloosh.math.array import ascont
     from time import time

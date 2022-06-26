@@ -31,63 +31,71 @@ def triangulate(*args, points=None, size: tuple = None,
     Parameters
     ----------
     points : numpy.ndarray, Optional
-        A 2d array of coordinates of a flat surface. This or `shape` \n
+        A 2d array of coordinates of a flat surface. This or `shape` 
         must be provided. 
 
     size : tuple, Optional
-        A 2-tuple, containg side lengths of a rectangular domain. \n
-        Should be provided alongside `shape`. Must be provided if \n
+        A 2-tuple, containg side lengths of a rectangular domain. 
+        Should be provided alongside `shape`. Must be provided if 
         points is None.
 
     shape : tuple or int, Optional
-        A 2-tuple, describing subdivisions along coordinate directions, \n 
-        or the number of base points used for triangulation. \n
+        A 2-tuple, describing subdivisions along coordinate directions,  
+        or the number of base points used for triangulation. 
         Should be provided alongside `size`.
         
     origo: numpy.ndarray, Optional
         1d float array, specifying the origo of the mesh.
         
     backend : str, Optional
-        The backend to use. It can be 'mpl' (matplotlib), 'pv' (pyvista), \n
+        The backend to use. It can be 'mpl' (matplotlib), 'pv' (pyvista), 
         or 'scipy'. Default is 'mpl'.
         
     random : bool, Optional
-        If `True`, and points are provided by `shape`, it creates random \n
+        If `True`, and points are provided by `shape`, it creates random 
         points in the region defined by `size`. Default is False.
         
     triangles : numpy.ndarray
-        2d integer array of vertex indices. If both `points` and \n
-        `triangles` are specified, the only thing this function does is to \n
+        2d integer array of vertex indices. If both `points` and 
+        `triangles` are specified, the only thing this function does is to 
         create a triangulation object according to the argument `backend`.
         
     triobj : object
-        An object representing a triangulation. It can be \n
-            * a result of a call to matplotlib.tri.Triangulation \n
-            * a Delaunay object from scipy \n
-            * an instance of pyvista.PolyData \n
-        In this case, the function can be used to transform between \n
+        An object representing a triangulation. It can be 
+        - a result of a call to matplotlib.tri.Triangulation 
+        - a Delaunay object from scipy  
+        - an instance of pyvista.PolyData 
+        In this case, the function can be used to transform between 
         the supported backends.
         
     return_lines : bool, Optional
-        If `True` the function return the unique edges of the \n
+        If `True` the function return the unique edges of the 
         triangulation and the indices of the edges for each triangle.
         
     Returns
     -------
-    ...
+    numpy.ndarray
+        A 2d float array of coordinates of points.
+        
+    numpy.ndarray
+        A 2d integer array representing the topology.
     
+    MeshLike
+        An object representing the triangulation, according to the specified backend.
     
     Examples
     --------
     Triangulate a rectangle of size 800x600 with a subdivision of 10x10
         
-    >>> triangulate(size=(800, 600), shape=(10, 10))
+    >>> coords, topo, triobj = triangulate(size=(800, 600), shape=(10, 10))
+    ...
     
     Triangulate a rectangle of size 800x600 with a number of 100 randomly
     distributed points
     
-    >>> triangulate(size=(800, 600), shape=100, random=True)
-
+    >>> coords, topo, triobj = triangulate(size=(800, 600), shape=100, random=True)
+    ...
+    
     """
     if len(args) > 0:
         if is_triobj(args[0]):
@@ -217,5 +225,3 @@ def is_triobj(triobj):
                         return True
     except Exception:
         return False
-    
-

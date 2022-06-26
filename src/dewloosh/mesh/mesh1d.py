@@ -44,6 +44,9 @@ def _mesh1d_uniform_(coords: ndarray, topo: ndarray, eshape: ndarray,
 
 def mesh1d_uniform(coords: ndarray, topo: ndarray, eshape: ndarray, *args, 
                    N :int=2, refZ=None, return_frames=False, **kwargs):
+    """
+    Returns the representation of a uniform 1d mesh as a tuple of numpy arrays.
+    """
     frames = atleast3d(frames_of_lines(coords, topo, refZ))
     coords, topo, frames = _mesh1d_uniform_(coords, topo, eshape, N, frames)
     if return_frames:
