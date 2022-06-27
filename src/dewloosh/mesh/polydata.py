@@ -166,8 +166,6 @@ class PolyData(DeepDict):
             if not issubclass(celltype, CellData):
                 raise TypeError("Invalid cell type <{}>".format(celltype))
 
-            root = self.root()
-            pd = root.pointdata
             if isinstance(topo, np.ndarray):
                 topo = topo.astype(int)
             else:
@@ -175,6 +173,10 @@ class PolyData(DeepDict):
 
             GIDs = self.root().cim.generate_np(topo.shape[0])
             cell_fields['id'] = GIDs
+            try:
+                pd = self.source().pointdata
+            except Exception:
+                pd = None
             self.celldata = celltype(topo, fields=cell_fields, pointdata=pd)
 
         if self.celldata is not None:
@@ -262,9 +264,19 @@ class PolyData(DeepDict):
 
         result.__dict__.update(self.__dict__)
         return result
+    
+    @property
+    def pd(self):
+        return self.pointdata
+
+    @property
+    def cd(self):
+        return self.celldata
 
     def simplify(self):
-        pass
+        # generalization of triangulation
+        # cells should be broken into simplest representations
+        raise NotImplementedError
 
     def __deepcopy__(self, memo):
         return self.__copy__(memo)
@@ -314,9 +326,14 @@ class PolyData(DeepDict):
         return pd
 
     @property
-    def config(self):
+    def config(self) -> DeepDict:
         """
         Returns the configuration object.
+        
+        Returns
+        -------
+        DeepDict
+            The configuration object.
 
         Examples
         --------
@@ -340,7 +357,7 @@ class PolyData(DeepDict):
     
     def _init_config_(self):
         key = self.__class__._pv_config_key_
-        self.config[key]['show_edges'] = False
+        self.config[key]['show_edges'] = True
 
     @property
     def pim(self) -> 'IndexManager':
@@ -427,14 +444,6 @@ class PolyData(DeepDict):
         Returns an iterable over blocks with cell data.
         """
         return filter(lambda i: i.celldata is not None, self.blocks(*args, **kwargs))
-
-    @property
-    def pd(self):
-        return self.pointdata
-
-    @property
-    def cd(self):
-        return self.celldata
 
     @property
     def point_fields(self):
@@ -670,17 +679,22 @@ class PolyData(DeepDict):
         coords = self.root().coords(from_cells=False)
         pd = PolyData(coords=coords, frame=self.frame)
         l0 = len(self.address)
-        for cb in self.cellblocks(inclusive=True):
+        if self.celldata is not None:
+            db = deepcopy(self.cd.db)
+            cd = self.celltype(pointdata=pd, db=db)
+            pd.celldata = cd
+            pd.celltype = self.celltype
+        for cb in self.cellblocks(inclusive=False):
             addr = cb.address
             if len(addr) > l0:
-                cd = cb.celltype(
-                    pointdata=pd, celldata=deepcopy(cb.celldata.db))
-                pd[addr[l0:]] = PolyData(cd)
+                db = deepcopy(cb.cd.db)
+                cd = cb.celltype(pointdata=pd, db=db)
+                pd[addr[l0:]] = PolyData(None, cd)
                 assert pd[addr[l0:]].celldata is not None
         return pd
 
     def nummrg(self):
-        pass
+        raise NotImplementedError
 
     def move(self, v: VectorLike, frame: FrameLike = None):
         """Moves the object."""
@@ -946,7 +960,7 @@ class PolyData(DeepDict):
     def pvplot(self, *args, deepcopy=True, jupyter_backend='pythreejs',
                show_edges=True, notebook=False, theme='document',
                scalars=None, window_size=None, return_plotter=False,
-               config_key=None, plotter=None, **kwargs):
+               config_key=None, plotter=None, cmap=None, **kwargs):
         if not __haspyvista__:
             raise ImportError('You need to install `pyVista` for this.')
         if scalars is None:
@@ -976,6 +990,8 @@ class PolyData(DeepDict):
         for block, poly in zip(blocks, polys):
             params = copy(pvparams)
             params.update(block.config[config_key])
+            if cmap is not None:
+                params['cmap'] = cmap
             plotter.add_mesh(poly, **params)
         if return_plotter:
             return plotter
@@ -986,12 +1002,14 @@ class PolyData(DeepDict):
 
     def __join_parent__(self, parent: DeepDict, key: Hashable = None):
         super().__join_parent__(parent, key)
-        if self.celldata is not None:
-            GIDs = self.root().cim.generate_np(len(self.celldata))
-            self.celldata['id'] = GIDs
         if self.pointdata is not None:
             GIDs = self.root().pim.generate_np(len(self.pointdata))
             self.pointdata['id'] = GIDs
+        if self.celldata is not None:
+            GIDs = self.root().cim.generate_np(len(self.celldata))
+            self.celldata['id'] = GIDs
+            if self.celldata.pd is None:
+                self.celldata.pd = self.source().pd
         self.rewire(deep=True)
 
     def __repr__(self):

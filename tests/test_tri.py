@@ -3,8 +3,9 @@ import numpy as np
 import unittest
 
 from dewloosh.mesh import TriMesh, CartesianFrame
-from dewloosh.mesh.primitives import circular_disk
+from dewloosh.mesh.recipes import circular_disk
 from dewloosh.mesh.cells import T3, T6
+from dewloosh.mesh.topo.tr import T3_to_T6
 
 
 class TestTri(unittest.TestCase):
@@ -38,10 +39,7 @@ class TestTri(unittest.TestCase):
     def test_area_circular_disk_T3(self):
         def test_area_circular_disk_T3(min_radius, max_radius, n_angles, n_radii):
             try:
-                A = CartesianFrame(dim=3)
-                points, triangles = \
-                    circular_disk(n_angles, n_radii, min_radius, max_radius)
-                mesh = TriMesh(points=points, triangles=triangles, frame=A)
+                mesh = circular_disk(n_angles, n_radii, min_radius, max_radius)
                 a = np.pi * (max_radius**2 - min_radius**2)
                 assert np.isclose(mesh.area(), a, atol=0, rtol=a/1000)
                 return True
@@ -55,8 +53,10 @@ class TestTri(unittest.TestCase):
         def test_area_circular_disk_T6(min_radius, max_radius, n_angles, n_radii):
             try:
                 A = CartesianFrame(dim=3)
-                points, triangles = \
-                    circular_disk(n_angles, n_radii, min_radius, max_radius)
+                mesh = circular_disk(n_angles, n_radii, min_radius, max_radius)
+                points = mesh.coords()
+                triangles = mesh.topology()
+                points, triangles = T3_to_T6(points, triangles)
                 mesh = TriMesh(points=points, triangles=triangles, frame=A, celltype=T6)
                 a = np.pi * (max_radius**2 - min_radius**2)
                 assert np.isclose(mesh.area(), a, atol=0, rtol=a/1000)

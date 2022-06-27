@@ -68,7 +68,8 @@ class TriMesh(PolyData):
         6: T6,
     }
 
-    def __init__(self, *args,  points=None, triangles=None, **kwargs):
+    def __init__(self, *args,  points=None, triangles=None, 
+                 celltype=None, **kwargs):
         # parent class handles pointdata and celldata creation
         points = points if points is not None else \
             kwargs.get('coords', None)
@@ -139,10 +140,11 @@ class TriMesh(PolyData):
         if not self.is_planar():
             raise RuntimeError("Only planar surfaces can be extruded!")
         assert celltype is None, "Currently only TET4 element is supported!"
-        celltype = TET4 if celltype == None else celltype
+        ct = TET4 if celltype == None else celltype
         assert self.celltype.NNODE == 3, "Only T3 elements are supported at the moment."
         coords, topo = extrude_T3_TET4(self.coords(), self.topology(), h, N)
-        return TetMesh(coords=coords, topo=topo, celltype=celltype)
+        f = self.frame
+        return TetMesh(coords=coords, topo=topo, celltype=ct, frame=f)
 
     def edges(self, return_cells=False):
         """

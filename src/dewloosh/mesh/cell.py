@@ -32,6 +32,15 @@ class PolyCell(CellData):
             kwargs['id'] = i
         super().__init__(*args, **kwargs)
         
+    def measures(self, *args, **kwargs):
+        raise NotImplementedError
+        
+    def volume(self, *args, **kwargs):
+        return np.sum(self.volumes(*args, **kwargs))
+
+    def volumes(self, *args, **kwargs):
+        raise NotImplementedError
+                
     def jacobian_matrix(self, *args, dshp=None, ecoords=None, topo=None, **kwargs):
         """
         Returns the jacobian matrix.
@@ -104,6 +113,21 @@ class PolyCell1d(PolyCell):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+    def lenth(self, *args, **kwargs):
+        return np.sum(self.lengths(*args, **kwargs))
+
+    def lengths(self, *args, **kwargs):
+        raise NotImplementedError
+    
+    def areas(self, *args, **kwargs):
+        raise NotImplementedError
+    
+    def area(self, *args, **kwargs):
+        return np.sum(self.areas(*args, **kwargs))
+    
+    def measures(self, *args, **kwargs):
+        return self.lengths(*args, **kwargs)
     
     # NOTE The functionality of `pcoords_to_coords_1d` needs to be generalized 
     # for higher order cells.    
@@ -155,7 +179,7 @@ class PolyCell1d(PolyCell):
             raise TypeError("Invalid data type <> for cells.".format(type(cells)))    
         
         return data
-                
+    
     
 class PolyCell2d(PolyCell):
 
@@ -164,6 +188,15 @@ class PolyCell2d(PolyCell):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+    def area(self, *args, **kwargs):
+        return np.sum(self.areas(*args, **kwargs))
+
+    def areas(self, *args, **kwargs):
+        raise NotImplementedError
+    
+    def measures(self, *args, **kwargs):
+        return self.areas(*args, **kwargs)
+        
     
 class PolyCell3d(PolyCell):
 
@@ -171,4 +204,7 @@ class PolyCell3d(PolyCell):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+    def measures(self, *args, **kwargs):
+        return self.volumes(*args, **kwargs)
         

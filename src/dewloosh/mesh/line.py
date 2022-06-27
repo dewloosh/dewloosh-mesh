@@ -17,25 +17,17 @@ class Line(PolyCell1d):
         super().__init__(*args, **kwargs)
                         
     def lengths(self, *args, coords=None, topo=None, **kwargs):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
+        if coords is None:
+            coords = self.pointdata.root().coords()
         topo = self.nodes.to_numpy() if topo is None else topo
         return lengths_of_lines(coords, topo)
-    
-    def length(self, *args, **kwargs):
-        return np.sum(self.length(*args, **kwargs))
-    
+        
     def areas(self, *args, **kwargs):
         if 'areas' in self.fields:
             return self['areas'].to_numpy()
         else:
             return np.ones((len(self)))
-    
-    def area(self, *args, **kwargs):
-        return np.sum(self.areas(*args, **kwargs))
-    
-    def volume(self, *args, **kwargs):
-        return np.sum(self.volumes(*args, **kwargs))
-
+        
     def volumes(self, *args, **kwargs):
         return self.lengths(*args, **kwargs) * self.areas(*args, **kwargs)
     

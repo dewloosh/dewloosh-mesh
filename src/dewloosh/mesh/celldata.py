@@ -53,6 +53,10 @@ class CellData(AkWrapper):
     @property
     def pd(self) -> AkWrapper:
         return self.pointdata
+    
+    @pd.setter
+    def pd(self, value : AkWrapper):
+        self.pointdata = value
         
     def __getattr__(self, attr):
         if attr in self.__dict__:

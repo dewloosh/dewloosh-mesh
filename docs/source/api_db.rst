@@ -1,17 +1,21 @@
-============
-Data Classes
-============
+=====================
+Composition of a Mesh
+=====================
 
 The classes in this module are the backbone of the data model behind every model.
 A model consists of a `DeepDict` instance responble to orchestrate data related
 to sets of points and cells in a compund polygonal mesh, similar to how kuberetes
 orchestrates containers.
 
+Data Model
+----------
+TODO
+
 ------------
 Mesh Classes
 ------------
 
-Mesh classes are all subclasses of `dewloosh.core.DeepDict`, which means
+Mesh classes are all subclasses of :class:`dewloosh.core.DeepDict`, which means
 that in the first place a mesh is a nested dictionary, with a self-replicating
 default factory. Every dictionary inside a sturcure like this can hold on to either
 points or cells, or both. They also can store data related to the points or the cells,
@@ -30,7 +34,7 @@ arguments in overall, resulting in more readable code.
 Line Meshes
 ===========
 
-.. autoclass:: dewloosh.mesh.linemesh.LineMesh
+.. autoclass:: dewloosh.mesh.linedata.LineData
     :members:
 
 Triangulations

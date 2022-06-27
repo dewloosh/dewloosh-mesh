@@ -10,12 +10,12 @@ from .cell import PolyCell2d
 class PolyGon(PolyCell2d):
     """
     Base class for polygons.
-    
+
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+
     @classmethod
     def from_TriMesh(cls, *args, coords=None, topo=None, **kwargs):
         raise NotImplementedError
@@ -24,21 +24,20 @@ class PolyGon(PolyCell2d):
         raise NotImplementedError
 
     def area(self, *args, coords=None, topo=None, **kwargs):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
+        if coords is None:
+            coords = self.pointdata.root().coords()
         topo = self.nodes.to_numpy() if topo is None else topo
-        return np.sum(self.areas(coords, topo))
+        return np.sum(self.areas(coords=coords, topo=topo))
 
     def areas(self, *args, coords=None, topo=None, **kwargs):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
+        if coords is None:
+            coords = self.pointdata.root().coords()
         topo = self.nodes.to_numpy() if topo is None else topo
         areas = area_tri_bulk(cells_coords(
             *self.to_triangles(coords, topo)))
         res = np.sum(areas.reshape(topo.shape[0], int(
             len(areas)/topo.shape[0])), axis=1)
         return np.squeeze(res)
-
-    def volume(self, *args, **kwargs):
-        return np.sum(self.volumes(*args, **kwargs))
 
     def volumes(self, *args, **kwargs):
         areas = self.areas(*args, **kwargs)
@@ -52,7 +51,7 @@ class PolyGon(PolyCell2d):
 class Triangle(PolyGon):
     """
     Base class for triangles.
-    
+
     """
 
     NNODE = 3
@@ -61,10 +60,10 @@ class Triangle(PolyGon):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-    def to_triangles(self, coords, topo):
-        return coords, topo
-    
+
+    def to_triangles(self):
+        return self.nodes.to_numpy()
+
     @classmethod
     def from_TriMesh(cls, *args, coords=None, topo=None, **kwargs):
         from dewloosh.mesh.tri.trimesh import TriMesh
@@ -90,11 +89,9 @@ class QuadraticTriangle(PolyGon):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def to_triangles(self, coords=None, topo=None, data=None):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
-        topo = self.nodes.to_numpy() if topo is None else topo
-        return T6_to_T3(coords, topo, data)
-    
+    def to_triangles(self):
+        return T6_to_T3(None, self.nodes.to_numpy())[1]
+
     @classmethod
     def from_TriMesh(cls, *args, coords=None, topo=None, **kwargs):
         from dewloosh.mesh.tri.trimesh import TriMesh
@@ -112,10 +109,8 @@ class Quadrilateral(PolyGon):
     vtkCellType = 9
     __label__ = 'Q4'
 
-    def to_triangles(self, coords=None, topo=None, data=None):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
-        topo = self.nodes.to_numpy() if topo is None else topo
-        return Q4_to_T3(coords, topo, data)
+    def to_triangles(self):
+        return Q4_to_T3(None, self.nodes.to_numpy())[1]
 
 
 class BiQuadraticQuadrilateral(PolyGon):
@@ -124,7 +119,5 @@ class BiQuadraticQuadrilateral(PolyGon):
     vtkCellType = 28
     __label__ = 'Q9'
 
-    def to_triangles(self, coords=None, topo=None, data=None):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
-        topo = self.nodes.to_numpy() if topo is None else topo
-        return Q4_to_T3(*Q9_to_Q4(coords, topo, data))
+    def to_triangles(self):
+        return Q4_to_T3(*Q9_to_Q4(None, self.nodes.to_numpy()))[1]
