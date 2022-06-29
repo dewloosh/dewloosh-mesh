@@ -6,6 +6,8 @@ from dewloosh.core import Wrapper
 
 
 class AkWrapper(Wrapper):
+    
+    _attr_map_ = {}
 
     def __init__(self, *args, wrap=None, fields=None, **kwargs):
         fields = {} if fields is None else fields
@@ -29,5 +31,22 @@ class AkWrapper(Wrapper):
     
     def __len__(self):
         return len(self._wrapped)
+    
+    def __hasattr__(self, attr):
+        if attr in self.__class__._attr_map_:
+            attr = self.__class__._attr_map_[attr]            
+        return any([attr in self.__dict__, 
+                    attr in self._wrapped.__dict__])
+
+    def __getattr__(self, attr):
+        if attr in self.__class__._attr_map_:
+            attr = self.__class__._attr_map_[attr]
+        if attr in self.__dict__:
+            return getattr(self, attr)
+        try:
+            return getattr(self._wrapped, attr)
+        except Exception:
+            raise AttributeError("'{}' object has no "\
+                + "attribute called {}".format(self.__class__.__name__, attr))
 
     

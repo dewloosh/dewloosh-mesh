@@ -1,30 +1,41 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+from numpy import ndarray
 
 from dewloosh.math.array import atleast2d
 
 from .utils import avg_cell_data, distribute_nodal_data, \
     homogenize_nodal_values
-from .akwrap import AkWrapper
+from .base import PointDataBase, CellDataBase
 
 
-class CellData(AkWrapper):
+class CellData(CellDataBase):
     """
     A class to handle data related to the cells of a polygonal mesh.
-    
-    Technicall this is a wrapper around an `awkward.Record` instance.
-    
+
+    Technically this is a wrapper around an `awkward.Record` instance.
+
     If you are not a developer, you probably don't have to ever create any
     instance of this class, but since it operates in the background of every
     polygonal data structure, it is important to understand how it works.
-    
+
     """
-    
+
+    _attr_map_ = {
+        'nodes': 'nodes',  # node indices
+        'frames': 'frames',  # coordinate frames
+        'ndf': 'ndf',  # nodal distribution factors
+        'id' : 'id',  # global indices of the cells
+        'areas' : 'areas',  # areas of 1d cells
+        't' : 't',  # thicknesses for 2d cells
+    }
+
     def __init__(self, *args, pointdata=None, celldata=None,
-                 wrap=None, topo=None, fields=None, frames=None, 
+                 wrap=None, topo=None, fields=None, frames=None,
                  db=None, **kwargs):
+        amap = self.__class__._attr_map_
         fields = {} if fields is None else fields
-        assert isinstance(fields, dict)     
+        assert isinstance(fields, dict)
 
         celldata = db if db is not None else celldata
         if celldata is not None:
@@ -36,28 +47,28 @@ class CellData(AkWrapper):
             else:
                 nodes = topo
             assert isinstance(nodes, np.ndarray)
-            fields['nodes'] = nodes
+            fields[amap['nodes']] = nodes
 
             if isinstance(frames, np.ndarray):
-                fields['frames'] = frames
-            
+                fields[amap['frames']] = frames
+
             N = nodes.shape[0]
             for k, v in kwargs.items():
                 if isinstance(v, np.ndarray):
                     if v.shape[0] == N:
                         fields[k] = v
-            
+
         super().__init__(*args, wrap=wrap, fields=fields, **kwargs)
         self.pointdata = pointdata
-        
+
     @property
-    def pd(self) -> AkWrapper:
+    def pd(self) -> PointDataBase:
         return self.pointdata
-    
+
     @pd.setter
-    def pd(self, value : AkWrapper):
+    def pd(self, value: PointDataBase):
         self.pointdata = value
-        
+
     def __getattr__(self, attr):
         if attr in self.__dict__:
             return getattr(self, attr)
@@ -68,7 +79,7 @@ class CellData(AkWrapper):
                 if self.pointdata is not None:
                     if attr in self.pointdata.fields:
                         data = self.pointdata[attr].to_numpy()
-                        topo = self._wrapped.nodes.to_numpy()
+                        topo = self.nodes
                         return avg_cell_data(data, topo)
             except:
                 pass
@@ -78,21 +89,25 @@ class CellData(AkWrapper):
             raise AttributeError("'{}' object has no attribute \
                 called {}".format(self.__class__.__name__, attr))
 
-    def set_nodal_distribution_factors(self, factors, key='ndf'):
+    def set_nodal_distribution_factors(self, factors, key=None):
+        if key is None:
+            key = self.__class__._attr_map_['ndf']
         if len(factors) != len(self._wrapped):
             self._wrapped[key] = factors[self._wrapped.id]
         else:
             self._wrapped[key] = factors
 
-    def pull(self, key: str = None, *args, ndfkey='ndf', store=False,
+    def pull(self, key: str = None, *args, ndfkey=None, store=False,
              storekey=None, avg=False, data=None, **kwargs):
+        if ndfkey is None:
+            ndfkey = self.__class__._attr_map_['ndf']
         storekey = key if storekey is None else storekey
         if key is not None:
             nodal_data = self.pointdata[key].to_numpy()
         else:
             assert isinstance(data, np.ndarray)
             nodal_data = data
-        topo = self.nodes.to_numpy()
+        topo = self.nodes
         ndf = self._wrapped[ndfkey].to_numpy()
         if len(nodal_data.shape) == 1:
             nodal_data = atleast2d(nodal_data, back=True)
@@ -116,7 +131,34 @@ class CellData(AkWrapper):
 
     def spush(self, *args, storekey=None, **kwargs):
         return self.push(*args, store=True, storekey=storekey, **kwargs)
-    
+
     @property
     def fields(self):
         return self._wrapped.fields
+
+    @property
+    def nodes(self) -> ndarray:
+        return self._wrapped[self.__class__._attr_map_['nodes']].to_numpy()
+
+    @nodes.setter
+    def nodes(self, value: ndarray):
+        assert isinstance(value, ndarray)
+        self._wrapped[self.__class__._attr_map_['nodes']] = value
+        
+    @property
+    def frames(self) -> ndarray:
+        return self._wrapped[self.__class__._attr_map_['frames']].to_numpy()
+
+    @frames.setter
+    def frames(self, value: ndarray):
+        assert isinstance(value, ndarray)
+        self._wrapped[self.__class__._attr_map_['frames']] = value
+        
+    @property
+    def id(self) -> ndarray:
+        return self._wrapped[self.__class__._attr_map_['id']].to_numpy()
+
+    @id.setter
+    def id(self, value: ndarray):
+        assert isinstance(value, ndarray)
+        self._wrapped[self.__class__._attr_map_['id']] = value

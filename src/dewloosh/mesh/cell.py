@@ -14,6 +14,7 @@ from dewloosh.math.utils import to_range
 from .celldata import CellData
 from .utils import jacobian_matrix_bulk, points_of_cells, pcoords_to_coords_1d
 from .topo import rewire, TopologyArray
+from .base import PolyDataBase as PolyData
 
 
 MapLike = Union[ndarray, MutableMapping]
@@ -24,14 +25,30 @@ class PolyCell(CellData):
     NNODE = None
     NDIM = None
     vtkCellType = None
-
-    def __init__(self, *args, topo: ndarray=None, i: ndarray=None, **kwargs):
+    
+    def __init__(self, *args, topo: ndarray=None, i: ndarray=None, 
+                 container:PolyData=None, **kwargs):
         if isinstance(topo, ndarray):
-            kwargs['nodes'] = topo
+            key = self.__class__._attr_map_['nodes']
+            kwargs[key] = topo
         if isinstance(i, ndarray):
-            kwargs['id'] = i
+            key = self.__class__._attr_map_['id']
+            kwargs[key] = i
         super().__init__(*args, **kwargs)
-        
+        self._container=container        
+    
+    @property
+    def container(self) -> PolyData:
+        return self._container
+    
+    @container.setter
+    def container(self, value: PolyData):
+        self._container = value
+    
+    def source(self) -> PolyData:
+        c = self.container
+        return None if c is None else c.source()
+            
     def measures(self, *args, **kwargs):
         raise NotImplementedError
         
@@ -59,17 +76,27 @@ class PolyCell(CellData):
         Returns the points of the cells.
         """
         assert target is None
-        topo = kwargs.get('topo', self.nodes.to_numpy())
-        coords = kwargs.get('coords', self.pointdata.x.to_numpy())
+        coords = kwargs.get('coords', None)
+        if coords is None:
+            if self.pointdata is not None:
+                coords = self.pointdata.x
+            else:
+                coords = self.container.source().coords()
+        topo = self.topology().to_numpy()
         return points_of_cells(coords, topo)
                     
     def local_coordinates(self, *args, **kwargs):
         """
         Returns local coordinates of the selection.
         """
-        frames = kwargs.get('frames', self.frames.to_numpy())
-        topo = kwargs.get('_topo', self.nodes.to_numpy())
-        coords = self.pointdata.x.to_numpy()
+        frames = kwargs.get('frames', self.frames)
+        topo = self.topology().to_numpy()
+        coords = kwargs.get('coords', None)
+        if coords is None:
+            if self.pointdata is not None:
+                coords = self.pointdata.x
+            else:
+                coords = self.container.source().coords()
         return points_of_cells(coords, topo, local_axes=frames)
     
     def coords(self, *args, **kwargs):
@@ -128,7 +155,7 @@ class PolyCell1d(PolyCell):
     
     def measures(self, *args, **kwargs):
         return self.lengths(*args, **kwargs)
-    
+        
     # NOTE The functionality of `pcoords_to_coords_1d` needs to be generalized 
     # for higher order cells.    
     def points_of_cells(self, *args, points=None, cells=None, target='global', 
@@ -137,8 +164,13 @@ class PolyCell1d(PolyCell):
             assert target.lower() in ['global', 'g']
         else:
             raise NotImplementedError
-        topo = kwargs.get('topo', self.nodes.to_numpy())
-        coords = kwargs.get('coords', self.pointdata.x.to_numpy())
+        topo = kwargs.get('topo', self.topology().to_numpy())
+        coords = kwargs.get('coords', None)
+        if coords is None:
+            if self.pointdata is not None:
+                coords = self.pointdata.x
+            else:
+                coords = self.container.source().coords()
         ecoords = points_of_cells(coords, topo)
         if points is None and cells is None:
             return ecoords
@@ -146,7 +178,7 @@ class PolyCell1d(PolyCell):
         # points or cells is not None
         if cells is not None:
             cells = atleast1d(cells)
-            conds = np.isin(cells, self.id.to_numpy())
+            conds = np.isin(cells, self.id)
             cells = atleast1d(cells[conds])
             if len(cells) == 0:
                 return {} 

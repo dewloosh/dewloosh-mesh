@@ -24,7 +24,8 @@ class LineData(PolyData):
             else:
                 assert len(areas.shape) == 1, \
                     "'areas' must be a 1d float or integer numpy array!"
-            self.celldata.db['areas'] = areas
+            dbkey = self.celldata.__class__._attr_map_['areas']
+            self.celldata.db[dbkey] = areas
             
     def _init_config_(self):
         super()._init_config_()
@@ -32,5 +33,4 @@ class LineData(PolyData):
         self.config[key]['color'] = 'k'
         self.config[key]['line_width'] = 10
         self.config[key]['render_lines_as_tubes'] = True 
-        #self.config[key]['style'] = 'wireframe'   
                

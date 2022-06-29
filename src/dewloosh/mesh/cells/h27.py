@@ -312,15 +312,23 @@ class H27(TriquadraticHexaHedron):
         return np.array([0., 0., 0.])
 
     def shape_function_derivatives(self, coords=None, *args, **kwargs):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
+        if coords is None:
+            if self.pointdata is not None:
+                coords = self.pointdata.x
+            else:
+                coords = self.container.source().coords()
         if len(coords.shape) == 2:
             return dshp_H27_bulk(coords)
         else:
             return dshp_H27(coords)
 
     def volumes(self, coords=None, topo=None):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
-        topo = self.nodes.to_numpy() if topo is None else topo
+        if coords is None:
+            if self.pointdata is not None:
+                coords = self.pointdata.x
+            else:
+                coords = self.container.source().coords()
+        topo = self.topology().to_numpy() if topo is None else topo
         ecoords = cells_coords(coords, topo)
         qpos, qweight = Gauss(3, 3, 3)
         return volumes_H27(ecoords, qpos, qweight)

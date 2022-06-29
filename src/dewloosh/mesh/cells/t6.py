@@ -87,15 +87,19 @@ class T6(Triangle):
         return np.array([[1/3, 1/3]])
 
     def shape_function_derivatives(self, coords=None, *args, **kwargs):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
+        coords = self.pointdata.x if coords is None else coords
         if len(coords.shape) == 2:
             return dshp_LST_bulk(coords)
         else:
             return dshp_LST(coords)
 
     def areas(self, *args, coords=None, topo=None, **kwargs):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
-        topo = self.nodes.to_numpy() if topo is None else topo
+        if coords is None:
+            if self.pointdata is not None:
+                coords = self.pointdata.x
+            else:
+                coords = self.container.source().coords()
+        topo = self.topology().to_numpy() if topo is None else topo
         ecoords = cells_coords(coords[:, :2], topo)
         qpos, qweight = np.array([[1/6, 1/6], [2/3, 1/6], [1/6, 2/3]]), \
             np.array([1/6, 1/6, 1/6])

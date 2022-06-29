@@ -26,6 +26,7 @@ from .topo import regularize, nodal_adjacency, detach_mesh_bulk, \
 from .topo.topoarray import TopologyArray
 from .pointdata import PointData
 from .celldata import CellData
+from .base import PolyDataBase
 
 from .config import __hasvtk__, __haspyvista__
 if __hasvtk__:
@@ -47,7 +48,7 @@ TopoLike = Union[ndarray, JaggedArray, akarray, TopologyArray]
 __all__ = ['PointData']
 
 
-class PolyData(DeepDict):
+class PolyData(PolyDataBase):
     """
     A class to handle complex polygonal meshes.
 
@@ -121,7 +122,7 @@ class PolyData(DeepDict):
 
     def __init__(self, pd=None, cd=None, *args, coords=None, topo=None,
                  celltype=None, frame: FrameLike = None, newaxis: int = 2,
-                 cell_fields=None, point_fields=None, parent: DeepDict = None,
+                 cell_fields=None, point_fields=None, parent: 'PolyData' = None,
                  **kwargs):
         self._reset_point_data()
         self._reset_cell_data()
@@ -264,7 +265,7 @@ class PolyData(DeepDict):
 
         result.__dict__.update(self.__dict__)
         return result
-    
+
     @property
     def pd(self):
         return self.pointdata
@@ -329,7 +330,7 @@ class PolyData(DeepDict):
     def config(self) -> DeepDict:
         """
         Returns the configuration object.
-        
+
         Returns
         -------
         DeepDict
@@ -354,7 +355,7 @@ class PolyData(DeepDict):
 
         """
         return self._config
-    
+
     def _init_config_(self):
         key = self.__class__._pv_config_key_
         self.config[key]['show_edges'] = True
@@ -492,8 +493,9 @@ class PolyData(DeepDict):
     @property
     def frames(self) -> ndarray:
         """Returnes the frames of the cells."""
-        if self.celldata is not None and 'frames' in self.celldata.fields:
-            return self.celldata.frames.to_numpy()
+        dbkey = self.__class__._attr_map_['frames']
+        if self.celldata is not None and dbkey in self.celldata.fields:
+            return self.celldata.frames
 
     @frames.setter
     def frames(self, value: ndarray):
@@ -537,7 +539,7 @@ class PolyData(DeepDict):
             if self.celldata is not None:
                 s = self.source()
                 if s is not self.root():
-                    imap = self.source().pointdata['id'].to_numpy()
+                    imap = self.source().pointdata.id
                     self.celldata.rewire(imap=imap)
         else:
             [c.rewire(deep=False) for c in self.cellblocks(inclusive=True)]
@@ -554,7 +556,7 @@ class PolyData(DeepDict):
         pointblocks = list(self.pointblocks(inclusive=True))
         m = map(lambda pb: pb.pointdata.fields, pointblocks)
         fields = np.unique(np.array(list(m)).flatten())
-        m = map(lambda pb: pb.pointdata.x.to_numpy(), pointblocks)
+        m = map(lambda pb: pb.pointdata.x, pointblocks)
         X, frame, axis = np.vstack(list(m)), self._frame, self._newaxis
         if len(fields) > 0:
             point_fields = {}
@@ -585,7 +587,7 @@ class PolyData(DeepDict):
         if len(fields) > 0:
             ndim = {f: [] for f in fields}
             for cb in cellblocks:
-                imap = cb.source().pointdata['id'].to_numpy()
+                imap = cb.source().pointdata.id
                 # cb.celldata.rewire(imap=imap)  # this has been done at joining parent
                 for f in fields:
                     if f in cb.celldata.fields:
@@ -621,9 +623,9 @@ class PolyData(DeepDict):
         else:
             # TODO : handle transformations here
             pb = list(self.pointblocks(inclusive=True))
-            m = map(lambda pb: pb.pointdata.x.to_numpy(), pb)
+            m = map(lambda pb: pb.pointdata.x, pb)
             coords = np.vstack(list(m))
-            m = map(lambda pb: pb.pointdata.id.to_numpy(), pb)
+            m = map(lambda pb: pb.pointdata.id, pb)
             inds = np.concatenate(list(m)).astype(int)
         __cls__ = self.__class__._point_array_class_
         points = __cls__(coords, frame=frame, inds=inds)
@@ -670,7 +672,7 @@ class PolyData(DeepDict):
         else:
             topo = np.vstack(topo)
             if return_inds:
-                inds = list(map(lambda i: i.celldata.id.to_numpy(), blocks))
+                inds = list(map(lambda i: i.celldata.id, blocks))
                 return topo, np.concatenate(inds)
             else:
                 return topo
@@ -885,14 +887,14 @@ class PolyData(DeepDict):
         blocks = list(self.cellblocks(inclusive=True, deep=deep))
         if fuse:
             if len(blocks) == 1:
-                topo = blocks[0].celldata.nodes.to_numpy().astype(np.int64)
+                topo = blocks[0].celldata.nodes.astype(np.int64)
                 ugrid = mesh_to_vtk(*detach_mesh_bulk(coords, topo),
                                     blocks[0].celltype.vtkCellType, deepcopy)
                 return ugrid
             mb = vtk.vtkMultiBlockDataSet()
             mb.SetNumberOfBlocks(len(blocks))
             for i, block in enumerate(blocks):
-                topo = block.celldata.nodes.to_numpy().astype(np.int64)
+                topo = block.celldata.nodes.astype(np.int64)
                 ugrid = mesh_to_vtk(*detach_mesh_bulk(coords, topo),
                                     block.celltype.vtkCellType, deepcopy)
                 mb.SetBlock(i, ugrid)
@@ -910,7 +912,7 @@ class PolyData(DeepDict):
                         pdata = self.celldata[scalars].to_numpy()
                     plotdata.append(pdata)
                 # the next line handles regular topologies only
-                topo = block.celldata.nodes.to_numpy().astype(np.int64)
+                topo = block.celldata.nodes.astype(np.int64)
                 ugrid = mesh_to_vtk(*detach_mesh_bulk(coords, topo),
                                     block.celltype.vtkCellType, deepcopy)
                 res.append(ugrid)
@@ -967,11 +969,11 @@ class PolyData(DeepDict):
             polys = self.to_pv(deepcopy=deepcopy, fuse=False)
         else:
             polys = self.to_pv(deepcopy=deepcopy, scalars=scalars, fuse=False)
-        
+
         if isinstance(theme, str):
             # pvparams.update(theme=theme)
             pv.set_plot_theme(theme)
-        
+
         if plotter is None:
             pvparams = dict()
             if window_size is not None:
@@ -982,7 +984,7 @@ class PolyData(DeepDict):
             plotter = pv.Plotter(**pvparams)
         else:
             return_plotter = True
-            
+
         pvparams = dict(show_edges=show_edges)
         blocks = self.cellblocks(inclusive=True, deep=True)
         if config_key is None:
@@ -1010,6 +1012,7 @@ class PolyData(DeepDict):
             self.celldata['id'] = GIDs
             if self.celldata.pd is None:
                 self.celldata.pd = self.source().pd
+            self.celldata.container = self
         self.rewire(deep=True)
 
     def __repr__(self):

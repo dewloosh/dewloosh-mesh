@@ -350,9 +350,9 @@ def index_of_furthest_point(coords: ndarray, target: ndarray) -> int:
 def points_of_cells(coords: ndarray, topo: ndarray, *args, 
                     local_axes=None, centralize=True, **kwargs) -> ndarray:
     """
-    Returns coordinates of the cells from a pointset and a topology.
-    If coordinate frames are provided, the coorindates are returned with
-    respect to those frames.
+    Returns an explicit representation of coordinates of the cells from a 
+    pointset and a topology. If coordinate frames are provided, the coorindates 
+    are returned with  respect to those frames.
     
     Parameters
     ----------
@@ -378,6 +378,11 @@ def points_of_cells(coords: ndarray, topo: ndarray, *args,
     centralize : bool
         If True, and 'frame' is not None, the local coordinates are returned
         with respect to the geometric center of each element.
+        
+    Returns
+    -------
+    ndarray
+        3d float array of coordinates
     
     Notes
     -----

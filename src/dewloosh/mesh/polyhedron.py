@@ -16,13 +16,15 @@ class PolyHedron(PolyCell3d):
         raise NotImplementedError
 
     def volume(self, *args, coords=None, topo=None, **kwargs):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
-        topo = self.nodes.to_numpy() if topo is None else topo
+        if coords is None:
+            coords = self.container.root().coords()
+        topo = self.nodes if topo is None else topo
         return np.sum(self.volumes(coords, topo))
 
     def volumes(self, *args, coords=None, topo=None, **kwargs):
-        coords = self.pointdata.x.to_numpy() if coords is None else coords
-        topo = self.nodes.to_numpy() if topo is None else topo
+        if coords is None:
+            coords = self.container.root().coords()
+        topo = self.nodes if topo is None else topo
         volumes = tet_vol_bulk(cells_coords(*self.to_tetrahedra(coords, topo)))
         res = np.sum(volumes.reshape(topo.shape[0], int(
             len(volumes) / topo.shape[0])), axis=1)

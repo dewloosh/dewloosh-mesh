@@ -1,38 +1,46 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+from numpy import ndarray
 
 from dewloosh.math.linalg import ReferenceFrame as FrameLike
 from dewloosh.math.array import isboolarray
 
 from .space import CartesianFrame, PointCloud
-from .akwrap import AkWrapper
+from .base import PointDataBase
+
 
 def gen_frame(coords): return CartesianFrame(dim=coords.shape[1])
 
 
-class PointData(AkWrapper):
+class PointData(PointDataBase):
     """
     A class to handle data related to the pointcloud of a polygonal mesh.
-    
+
     Technicall this is a wrapper around an `awkward.Record` instance.
-    
+
     If you are not a developer, you probably don't have to ever create any
     instance of this class, but since it operates in the background of every
     polygonal data structure, it is important to understand how it works.
-    
+
     """
 
     _point_cls_ = PointCloud
+    _attr_map_ = {
+        'x': 'x',  # coordinates
+        'active': 'active',  # activity of the points
+        'id' : 'id',  # global indices of the points
+    }
 
     def __init__(self, *args, points=None, coords=None, wrap=None, fields=None,
-                 frame: FrameLike = None, newaxis: int = 2, stateful=False, 
+                 frame: FrameLike = None, newaxis: int = 2, stateful=False,
                  activity=None, db=None, **kwargs):
         if db is not None:
             wrap = db
         else:
+            amap = self.__class__._attr_map_
             fields = {} if fields is None else fields
             assert isinstance(fields, dict)
-        
+
             # coordinate frame
             if not isinstance(frame, FrameLike):
                 if coords is not None:
@@ -63,8 +71,8 @@ class PointData(AkWrapper):
                         X = point_cls(X, frame=frame).show()
             elif nD == 3:
                 X = point_cls(X, frame=frame).show()
-            fields['x'] = X
-            
+            fields[amap['x']] = X
+
             if activity is None:
                 activity = np.ones(nP, dtype=bool)
             else:
@@ -72,19 +80,46 @@ class PointData(AkWrapper):
                     "'activity' must be a 1d boolean numpy array!"
             if activity is None and stateful:
                 fields['active'] = np.ones(nP, dtype=bool)
-            fields['active'] = activity
-            
+            fields[amap['active']] = activity
+
             if stateful:
-                fields['active'] = np.ones(nP, dtype=bool)
-                
+                fields[amap['active']] = np.ones(nP, dtype=bool)
+
             for k, v in kwargs.items():
                 if isinstance(v, np.ndarray):
                     if v.shape[0] == nP:
                         fields[k] = v
-                
+
         super().__init__(*args, wrap=wrap, fields=fields, **kwargs)
-        self._celldata = []
-    
+        # self._celldata = []  delete if still inactive NOTE
+
     @property
-    def frame(self):
+    def frame(self) -> FrameLike:
         return self._frame
+
+    @property
+    def activity(self) -> ndarray:
+        return self._wrapped[self.__class__._attr_map_['active']].to_numpy()
+
+    @activity.setter
+    def activity(self, value: ndarray):
+        assert isinstance(value, ndarray)
+        self._wrapped[self.__class__._attr_map_['active']] = value
+
+    @property
+    def x(self) -> ndarray:
+        return self._wrapped[self.__class__._attr_map_['x']].to_numpy()
+
+    @x.setter
+    def x(self, value: ndarray):
+        assert isinstance(value, ndarray)
+        self._wrapped[self.__class__._attr_map_['x']] = value
+        
+    @property
+    def id(self) -> ndarray:
+        return self._wrapped[self.__class__._attr_map_['id']].to_numpy()
+
+    @id.setter
+    def id(self, value: ndarray):
+        assert isinstance(value, ndarray)
+        self._wrapped[self.__class__._attr_map_['id']] = value
