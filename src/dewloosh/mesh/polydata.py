@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from copy import copy, deepcopy
-from typing import Union, Hashable, Collection, Iterable, Tuple
+from typing import Union, Hashable, Collection, Iterable
 from numpy import ndarray
 import numpy as np
 from awkward import Array as akarray
@@ -10,19 +10,24 @@ from dewloosh.core import DeepDict
 from dewloosh.math.linalg.sparse import JaggedArray
 from dewloosh.math.linalg import Vector, ReferenceFrame as FrameLike
 from dewloosh.math.linalg.vector import VectorBase
-from dewloosh.math.array import atleast3d, repeat, atleastnd
+from dewloosh.math.array import atleastnd
 
 from dewloosh.mesh.topo.topo import inds_to_invmap_as_dict, remap_topo_1d
 from .space import CartesianFrame, PointCloud
 from .utils import cells_coords, cells_around, cell_center_bulk
 from .utils import k_nearest_neighbours as KNN
 from .vtkutils import mesh_to_UnstructuredGrid as mesh_to_vtk, PolyData_to_mesh
-from .cells import T3 as Triangle, Q4 as Quadrilateral, H8 as Hexahedron, \
-    H27 as TriquadraticHexaHedron, Q9, TET10
+from .cells import (
+    T3 as Triangle, 
+    Q4 as Quadrilateral, 
+    H8 as Hexahedron,
+    H27 as TriquadraticHexaHedron, 
+    Q9, 
+    TET10
+    )
 from .polyhedron import Wedge
 from .utils import index_of_closest_point, nodal_distribution_factors
-from .topo import regularize, nodal_adjacency, detach_mesh_bulk, \
-    cells_at_nodes
+from .topo import regularize, nodal_adjacency, detach_mesh_bulk, cells_at_nodes
 from .topo.topoarray import TopologyArray
 from .pointdata import PointData
 from .celldata import CellData
@@ -132,6 +137,9 @@ class PolyData(PolyDataBase):
         self._config = DeepDict()
         self._init_config_()
 
+        self.point_index_manager = IndexManager()
+        self.cell_index_manager = IndexManager()
+
         if isinstance(pd, PointData):
             self.pointdata = pd
             if isinstance(cd, CellData):
@@ -143,16 +151,32 @@ class PolyData(PolyDataBase):
         elif isinstance(cd, CellData):
             self.celldata = cd
 
-        super().__init__(*args, **kwargs)
+        pkeys = self.__class__._point_class_._attr_map_
+        ckeys = CellData._attr_map_
 
-        self.point_index_manager = IndexManager()
-        self.cell_index_manager = IndexManager()
+        if self.pointdata is not None:
+            N = len(self.pointdata)
+            GIDs = self.root().pim.generate_np(N)
+            self.pd[pkeys['id']] = GIDs
+
+        if self.celldata is not None:
+            N = len(self.celldata)
+            GIDs = self.root().cim.generate_np(N)
+            self.cd[pkeys['id']] = GIDs
+            try:
+                pd = self.source().pd
+            except Exception:
+                pd = None
+            self.cd.pd = pd
+            self.cd.container = self
+
+        super().__init__(*args, **kwargs)
 
         if self.pointdata is None and coords is not None:
             point_fields = {} if point_fields is None else point_fields
             pointtype = self.__class__._point_class_
             GIDs = self.root().pim.generate_np(coords.shape[0])
-            point_fields['id'] = GIDs
+            point_fields[pkeys['id']] = GIDs
             self.pointdata = pointtype(coords=coords, frame=frame,
                                        newaxis=newaxis, stateful=True,
                                        fields=point_fields)
@@ -173,7 +197,7 @@ class PolyData(PolyDataBase):
                 raise TypeError("Topo must be an 1d array of integers.")
 
             GIDs = self.root().cim.generate_np(topo.shape[0])
-            cell_fields['id'] = GIDs
+            cell_fields[ckeys['id']] = GIDs
             try:
                 pd = self.source().pointdata
             except Exception:
@@ -182,6 +206,7 @@ class PolyData(PolyDataBase):
 
         if self.celldata is not None:
             self.celltype = self.celldata.__class__
+            self.celldata.container = self
 
     def __copy__(self, memo=None):
         cls = self.__class__
@@ -378,16 +403,6 @@ class PolyData(PolyDataBase):
         """Sets the parent."""
         self._parent = value
 
-    @property
-    def address(self) -> Tuple:
-        """Returns the address of an item."""
-        if self.is_root():
-            return []
-        else:
-            r = self.parent.address
-            r.append(self.key)
-            return r
-
     def is_source(self, key) -> bool:
         """
         Returns `True`, if the object is a valid source of data specified by `key`.
@@ -479,22 +494,12 @@ class PolyData(PolyDataBase):
     @property
     def frame(self) -> FrameLike:
         """Returns the frame of the underlying pointcloud."""
-        if self.is_root():
-            if self._frame is not None:
-                return self._frame
-            else:
-                dim = self.source().coords().shape[-1]
-                self._frame = self._frame_class_(dim=dim)
-                return self._frame
-        else:
-            f = self._frame
-            return f if f is not None else self.parent.frame
+        return self.source().pointdata.frame
 
     @property
     def frames(self) -> ndarray:
         """Returnes the frames of the cells."""
-        dbkey = self.__class__._attr_map_['frames']
-        if self.celldata is not None and dbkey in self.celldata.fields:
+        if self.celldata is not None:
             return self.celldata.frames
 
     @frames.setter
@@ -502,12 +507,7 @@ class PolyData(PolyDataBase):
         """Sets the frames of the cells."""
         assert self.celldata is not None
         if isinstance(value, ndarray):
-            value = atleast3d(value)
-            if len(value) == 1:
-                value = repeat(value[0], len(self.celldata._wrapped))
-            else:
-                assert len(value) == len(self.celldata._wrapped)
-            self.celldata._wrapped['frames'] = value
+            self.celldata.frames = value
         else:
             raise TypeError(('Type {} is not a supported' +
                              ' type to specify frames.').format(type(value)))
@@ -607,6 +607,11 @@ class PolyData(PolyDataBase):
         """
         Returns the points as a :class:`dewloosh.mesh.space.PointCloud` instance.
 
+        Notes
+        -----
+        Opposed to :func:`coords`, which returns the coordiantes, it returns the points 
+        of a mesh as vectors.
+
         See Also
         --------
         :class:`dewloosh.mesh.space.PointCloud`
@@ -621,12 +626,22 @@ class PolyData(PolyDataBase):
             inds = remap_topo_1d(inds_, imap)
             coords, inds = x[inds, :], inds_
         else:
-            # TODO : handle transformations here
-            pb = list(self.pointblocks(inclusive=True))
+            __cls__ = self.__class__._point_array_class_
+            coords, inds = [], []
+            for pb in self.pointblocks(inclusive=True):
+                x = pb.pd.x
+                fr = pb.frame
+                i = pb.pd.id
+                v = Vector(x, frame=fr)
+                coords.append(v.show(frame))
+                inds.append(i)
+            coords = np.vstack(list(coords))
+            inds = np.concatenate(inds).astype(int)
+            """pb = list(self.pointblocks(inclusive=True))
             m = map(lambda pb: pb.pointdata.x, pb)
             coords = np.vstack(list(m))
             m = map(lambda pb: pb.pointdata.id, pb)
-            inds = np.concatenate(list(m)).astype(int)
+            inds = np.concatenate(list(m)).astype(int)"""
         __cls__ = self.__class__._point_array_class_
         points = __cls__(coords, frame=frame, inds=inds)
         if return_inds:

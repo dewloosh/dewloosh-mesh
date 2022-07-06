@@ -2,11 +2,11 @@
 import numpy as np
 from numpy import ndarray
 
-from dewloosh.math.array import atleast2d
+from dewloosh.math.array import atleast2d, atleast3d, repeat
 
 from .utils import avg_cell_data, distribute_nodal_data, \
     homogenize_nodal_values
-from .base import PointDataBase, CellDataBase
+from .base import PointDataBase, CellDataBase, PolyDataBase as PolyData
 
 
 class CellData(CellDataBase):
@@ -28,11 +28,13 @@ class CellData(CellDataBase):
         'id' : 'id',  # global indices of the cells
         'areas' : 'areas',  # areas of 1d cells
         't' : 't',  # thicknesses for 2d cells
+        'activity': 'activity',  # activity of the cells
+        'ndf' : 'ndf',  # nodal distribution factors
     }
 
     def __init__(self, *args, pointdata=None, celldata=None,
                  wrap=None, topo=None, fields=None, frames=None,
-                 db=None, **kwargs):
+                 db=None, activity=None, container:PolyData=None, **kwargs):
         amap = self.__class__._attr_map_
         fields = {} if fields is None else fields
         assert isinstance(fields, dict)
@@ -51,6 +53,9 @@ class CellData(CellDataBase):
 
             if isinstance(frames, np.ndarray):
                 fields[amap['frames']] = frames
+                
+            if isinstance(activity, np.ndarray):
+                fields[amap['activity']] = activity
 
             N = nodes.shape[0]
             for k, v in kwargs.items():
@@ -60,6 +65,7 @@ class CellData(CellDataBase):
 
         super().__init__(*args, wrap=wrap, fields=fields, **kwargs)
         self.pointdata = pointdata
+        self._container=container
 
     @property
     def pd(self) -> PointDataBase:
@@ -68,6 +74,23 @@ class CellData(CellDataBase):
     @pd.setter
     def pd(self, value: PointDataBase):
         self.pointdata = value
+        
+    @property
+    def container(self) -> PolyData:
+        return self._container
+    
+    @container.setter
+    def container(self, value: PolyData):
+        assert isinstance(value, PolyData)
+        self._container = value
+    
+    def root(self) -> PolyData:
+        c = self.container
+        return None if c is None else c.root()
+    
+    def source(self) -> PolyData:
+        c = self.container
+        return None if c is None else c.source()
 
     def __getattr__(self, attr):
         if attr in self.__dict__:
@@ -148,12 +171,17 @@ class CellData(CellDataBase):
     @property
     def frames(self) -> ndarray:
         return self._wrapped[self.__class__._attr_map_['frames']].to_numpy()
-
+        
     @frames.setter
     def frames(self, value: ndarray):
         assert isinstance(value, ndarray)
+        value = atleast3d(value)            
+        if len(value) == 1:
+            value = repeat(value[0], len(self.celldata._wrapped))
+        else:
+            assert len(value) == len(self._wrapped)
         self._wrapped[self.__class__._attr_map_['frames']] = value
-        
+                
     @property
     def id(self) -> ndarray:
         return self._wrapped[self.__class__._attr_map_['id']].to_numpy()
@@ -162,3 +190,12 @@ class CellData(CellDataBase):
     def id(self, value: ndarray):
         assert isinstance(value, ndarray)
         self._wrapped[self.__class__._attr_map_['id']] = value
+
+    @property
+    def activity(self) -> ndarray:
+        return self._wrapped[self.__class__._attr_map_['activity']].to_numpy()
+
+    @activity.setter
+    def activity(self, value: ndarray):
+        assert isinstance(value, ndarray)
+        self._wrapped[self.__class__._attr_map_['activity']] = value

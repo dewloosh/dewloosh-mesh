@@ -43,7 +43,7 @@ class PolyGon(PolyCell2d):
         dbkey = self.__class__._attr_map_['t']
         areas = self.areas(*args, **kwargs)
         if dbkey in self.fields:
-            t = self.fields[dbkey].to_numpy()
+            t = self.db[dbkey].to_numpy()
             return areas * t
         else:
             return areas

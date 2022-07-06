@@ -25,10 +25,11 @@ class PointData(PointDataBase):
     """
 
     _point_cls_ = PointCloud
+    _frame_class_ = CartesianFrame
     _attr_map_ = {
         'x': 'x',  # coordinates
-        'active': 'active',  # activity of the points
-        'id' : 'id',  # global indices of the points
+        'activity': 'activity',  # activity of the points
+        'id': 'id',  # global indices of the points
     }
 
     def __init__(self, *args, points=None, coords=None, wrap=None, fields=None,
@@ -79,11 +80,11 @@ class PointData(PointDataBase):
                 assert isboolarray(activity) and len(activity.shape) == 1, \
                     "'activity' must be a 1d boolean numpy array!"
             if activity is None and stateful:
-                fields['active'] = np.ones(nP, dtype=bool)
-            fields[amap['active']] = activity
+                fields[amap['active']] = np.ones(nP, dtype=bool)
+            fields[amap['activity']] = activity
 
             if stateful:
-                fields[amap['active']] = np.ones(nP, dtype=bool)
+                fields[amap['activity']] = np.ones(nP, dtype=bool)
 
             for k, v in kwargs.items():
                 if isinstance(v, np.ndarray):
@@ -91,20 +92,24 @@ class PointData(PointDataBase):
                         fields[k] = v
 
         super().__init__(*args, wrap=wrap, fields=fields, **kwargs)
-        # self._celldata = []  delete if still inactive NOTE
-
+    
     @property
     def frame(self) -> FrameLike:
-        return self._frame
+        """Returns the frame of the underlying pointcloud."""
+        if isinstance(self._frame, FrameLike):
+            return self._frame
+        else:
+            dim = self.x.shape[-1]
+            return self._frame_class_(dim=dim)
 
     @property
     def activity(self) -> ndarray:
-        return self._wrapped[self.__class__._attr_map_['active']].to_numpy()
+        return self._wrapped[self.__class__._attr_map_['activity']].to_numpy()
 
     @activity.setter
     def activity(self, value: ndarray):
         assert isinstance(value, ndarray)
-        self._wrapped[self.__class__._attr_map_['active']] = value
+        self._wrapped[self.__class__._attr_map_['activity']] = value
 
     @property
     def x(self) -> ndarray:
@@ -114,7 +119,7 @@ class PointData(PointDataBase):
     def x(self, value: ndarray):
         assert isinstance(value, ndarray)
         self._wrapped[self.__class__._attr_map_['x']] = value
-        
+
     @property
     def id(self) -> ndarray:
         return self._wrapped[self.__class__._attr_map_['id']].to_numpy()
