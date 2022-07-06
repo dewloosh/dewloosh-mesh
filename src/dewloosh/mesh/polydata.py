@@ -977,7 +977,7 @@ class PolyData(PolyDataBase):
     def pvplot(self, *args, deepcopy=True, jupyter_backend='pythreejs',
                show_edges=True, notebook=False, theme='document',
                scalars=None, window_size=None, return_plotter=False,
-               config_key=None, plotter=None, cmap=None, **kwargs):
+               config_key=None, plotter=None, cmap=None, camera_position=None, **kwargs):
         if not __haspyvista__:
             raise ImportError('You need to install `pyVista` for this.')
         if scalars is None:
@@ -1000,6 +1000,9 @@ class PolyData(PolyDataBase):
         else:
             return_plotter = True
 
+        if camera_position is not None:
+            plotter.camera_position = camera_position
+        
         pvparams = dict(show_edges=show_edges)
         blocks = self.cellblocks(inclusive=True, deep=True)
         if config_key is None:
