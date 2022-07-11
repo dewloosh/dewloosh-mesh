@@ -25,11 +25,11 @@ class PolyCell(CellData):
     NDIM = None
     vtkCellType = None
 
-    """def __init__(self, *args, topo: ndarray=None, i: ndarray=None, **kwargs):
+    def __init__(self, *args, i: ndarray=None, **kwargs):
         if isinstance(i, ndarray):
             key = self.__class__._attr_map_['id']
             kwargs[key] = i
-        super().__init__(*args, **kwargs)"""
+        super().__init__(*args, **kwargs)
 
     def measures(self, *args, **kwargs):
         raise NotImplementedError
