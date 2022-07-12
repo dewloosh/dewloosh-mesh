@@ -99,13 +99,15 @@ class TriMesh(PolyData):
         """
         Returns the normalized coordinate frames of triangles as a 3d numpy array.
         """
-        return frames_of_surfaces(self.coords(), self.topology())
+        x = self.coords()
+        assert x.shape[-1] == 3, "This is only available for 3d datasets."
+        return frames_of_surfaces(x, self.topology()[:, :3])
 
     def normals(self) ->np.ndarray:
         """
         Retuns the surface normals as a 2d numpy array.
         """
-        return ascont(self.axes()[:, self._newaxis, :])
+        return ascont(self.axes()[:, 2, :])
 
     def is_planar(self) -> bool:
         """
@@ -141,10 +143,14 @@ class TriMesh(PolyData):
             raise RuntimeError("Only planar surfaces can be extruded!")
         assert celltype is None, "Currently only TET4 element is supported!"
         ct = TET4 if celltype == None else celltype
-        assert self.celltype.NNODE == 3, "Only T3 elements are supported at the moment."
-        coords, topo = extrude_T3_TET4(self.coords(), self.topology(), h, N)
-        f = self.frame
-        return TetMesh(coords=coords, topo=topo, celltype=ct, frame=f)
+        inds = list(range(3))
+        inds.pop(self._newaxis)
+        x = self.coords()[:, inds]
+        x, topo = extrude_T3_TET4(x, self.topology()[:, :3], h, N)
+        c = np.zeros((x.shape[0], 3))
+        c[:, inds] = x[:, :2]
+        c[:, self._newaxis] = x[:, -1]
+        return TetMesh(coords=c, topo=topo, celltype=ct, frame=self.frame)
 
     def edges(self, return_cells=False):
         """

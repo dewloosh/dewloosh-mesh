@@ -25,16 +25,16 @@ class CellData(CellDataBase):
         'nodes': 'nodes',  # node indices
         'frames': 'frames',  # coordinate frames
         'ndf': 'ndf',  # nodal distribution factors
-        'id' : 'id',  # global indices of the cells
-        'areas' : 'areas',  # areas of 1d cells
-        't' : 't',  # thicknesses for 2d cells
+        'id': 'id',  # global indices of the cells
+        'areas': 'areas',  # areas of 1d cells
+        't': 't',  # thicknesses for 2d cells
         'activity': 'activity',  # activity of the cells
-        'ndf' : 'ndf',  # nodal distribution factors
+        'ndf': 'ndf',  # nodal distribution factors
     }
 
     def __init__(self, *args, pointdata=None, celldata=None,
                  wrap=None, topo=None, fields=None, frames=None,
-                 db=None, activity=None, container:PolyData=None, **kwargs):
+                 db=None, activity=None, container: PolyData = None, **kwargs):
         amap = self.__class__._attr_map_
         fields = {} if fields is None else fields
         assert isinstance(fields, dict)
@@ -51,9 +51,6 @@ class CellData(CellDataBase):
             assert isinstance(nodes, np.ndarray)
             fields[amap['nodes']] = nodes
 
-            if isinstance(frames, np.ndarray):
-                fields[amap['frames']] = frames
-                
             if isinstance(activity, np.ndarray):
                 fields[amap['activity']] = activity
 
@@ -64,8 +61,14 @@ class CellData(CellDataBase):
                         fields[k] = v
 
         super().__init__(*args, wrap=wrap, fields=fields, **kwargs)
+        
         self.pointdata = pointdata
-        self._container=container
+        self._container = container
+        
+        if self.db is not None:
+            if isinstance(frames, np.ndarray):
+                # this handles possible repetition of a single frame
+                self.frames = frames
 
     @property
     def pd(self) -> PointDataBase:
@@ -74,20 +77,20 @@ class CellData(CellDataBase):
     @pd.setter
     def pd(self, value: PointDataBase):
         self.pointdata = value
-        
+
     @property
     def container(self) -> PolyData:
         return self._container
-    
+
     @container.setter
     def container(self, value: PolyData):
         assert isinstance(value, PolyData)
         self._container = value
-    
+
     def root(self) -> PolyData:
         c = self.container
         return None if c is None else c.root()
-    
+
     def source(self) -> PolyData:
         c = self.container
         return None if c is None else c.source()
@@ -167,21 +170,21 @@ class CellData(CellDataBase):
     def nodes(self, value: ndarray):
         assert isinstance(value, ndarray)
         self._wrapped[self.__class__._attr_map_['nodes']] = value
-        
+
     @property
     def frames(self) -> ndarray:
         return self._wrapped[self.__class__._attr_map_['frames']].to_numpy()
-        
+
     @frames.setter
     def frames(self, value: ndarray):
         assert isinstance(value, ndarray)
-        value = atleast3d(value)            
+        value = atleast3d(value)
         if len(value) == 1:
             value = repeat(value[0], len(self.celldata._wrapped))
         else:
             assert len(value) == len(self._wrapped)
         self._wrapped[self.__class__._attr_map_['frames']] = value
-                
+
     @property
     def id(self) -> ndarray:
         return self._wrapped[self.__class__._attr_map_['id']].to_numpy()

@@ -50,7 +50,7 @@ VectorLike = Union[Vector, ndarray]
 TopoLike = Union[ndarray, JaggedArray, akarray, TopologyArray]
 
 
-__all__ = ['PointData']
+__all__ = ['PolyData']
 
 
 class PolyData(PolyDataBase):
@@ -494,7 +494,12 @@ class PolyData(PolyDataBase):
     @property
     def frame(self) -> FrameLike:
         """Returns the frame of the underlying pointcloud."""
-        return self.source().pointdata.frame
+        if self._frame is not None:
+            return self._frame
+        else:
+            if self.is_source('x'):
+                return self.pointdata.frame
+        return self.source().frame
 
     @property
     def frames(self) -> ndarray:
@@ -618,7 +623,7 @@ class PolyData(PolyDataBase):
         :func:`coords`
 
         """
-        frame = self.frame
+        target = self.frame
         if from_cells:
             inds_ = np.unique(self.topology())
             x, inds = self.root().points(from_cells=False, return_inds=True)
@@ -633,17 +638,12 @@ class PolyData(PolyDataBase):
                 fr = pb.frame
                 i = pb.pd.id
                 v = Vector(x, frame=fr)
-                coords.append(v.show(frame))
+                coords.append(v.show(target))
                 inds.append(i)
             coords = np.vstack(list(coords))
             inds = np.concatenate(inds).astype(int)
-            """pb = list(self.pointblocks(inclusive=True))
-            m = map(lambda pb: pb.pointdata.x, pb)
-            coords = np.vstack(list(m))
-            m = map(lambda pb: pb.pointdata.id, pb)
-            inds = np.concatenate(list(m)).astype(int)"""
         __cls__ = self.__class__._point_array_class_
-        points = __cls__(coords, frame=frame, inds=inds)
+        points = __cls__(coords, frame=target, inds=inds)
         if return_inds:
             return points, inds
         return points
@@ -1032,7 +1032,18 @@ class PolyData(PolyDataBase):
                 self.celldata.pd = self.source().pd
             self.celldata.container = self
         self.rewire(deep=True)
-
+        
+    def __leave_parent__(self):
+        if self.pointdata is not None:
+            self.root().pim.recycle(self.poitdata.id)
+            dbkey = self.pointdata.__class__._attr_map_['id']
+            del self.pointdata._wrapped[dbkey]
+        if self.celldata is not None:
+            self.root().cim.recycle(self.celldata.id)
+            dbkey = self.celldata.__class__._attr_map_['id']
+            del self.celldata._wrapped[dbkey]
+        super().__leave_parent__()
+        
     def __repr__(self):
         return 'PolyData(%s)' % (dict.__repr__(self))
 
