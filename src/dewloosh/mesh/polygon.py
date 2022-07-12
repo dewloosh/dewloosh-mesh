@@ -20,7 +20,7 @@ class PolyGon(PolyCell2d):
     def from_TriMesh(cls, *args, coords=None, topo=None, **kwargs):
         raise NotImplementedError
 
-    def to_triangles(self, coords, topo):
+    def to_triangles(self):
         raise NotImplementedError
 
     def area(self, *args, coords=None, topo=None, **kwargs):
@@ -33,8 +33,8 @@ class PolyGon(PolyCell2d):
         if coords is None:
             coords = self.container.root().coords()
         topo = self.nodes if topo is None else topo
-        areas = area_tri_bulk(cells_coords(
-            *self.to_triangles(coords, topo)))
+        topo_tri = self.to_triangles()
+        areas = area_tri_bulk(cells_coords(coords, topo_tri))
         res = np.sum(areas.reshape(topo.shape[0], int(
             len(areas)/topo.shape[0])), axis=1)
         return np.squeeze(res)

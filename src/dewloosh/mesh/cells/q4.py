@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-from dewloosh.mesh.polygon import Quadrilateral
 from dewloosh.math.array import flatten2dC
 from numba import njit, prange
 import numpy as np
 from numpy import ndarray
+
+from ..polygon import Quadrilateral
+
 __cache = True
 
 

@@ -685,7 +685,7 @@ class PolyData(PolyDataBase):
                 raise NotImplementedError
             return TopologyArray(*topo)
         else:
-            topo = np.vstack(topo)
+            topo = np.vstack([t.to_numpy() for t in topo])
             if return_inds:
                 inds = list(map(lambda i: i.celldata.id, blocks))
                 return topo, np.concatenate(inds)

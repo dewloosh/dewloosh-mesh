@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
-from dewloosh.mesh.polygon import BiQuadraticQuadrilateral
-from dewloosh.math.array import flatten2dC
 from numba import njit, prange
 import numpy as np
 from numpy import ndarray
+
+from dewloosh.math.array import flatten2dC
+
+from ..polygon import BiQuadraticQuadrilateral
+
 __cache = True
 
 
