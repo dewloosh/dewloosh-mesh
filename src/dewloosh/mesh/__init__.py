@@ -5,8 +5,10 @@ __description__ = "A Python package to build, manipulate and analyze polygonal m
 from dewloosh.mesh.space import PointCloud
 from dewloosh.mesh.space import CartesianFrame
 from dewloosh.mesh.tri.triang import triangulate
-from dewloosh.mesh.rgrid import grid, Grid
+from .grid import grid, Grid
 from dewloosh.mesh.tri.trimesh import TriMesh
 from dewloosh.mesh.tet.tetmesh import TetMesh
 from dewloosh.mesh.polydata import PolyData
 from dewloosh.mesh.linedata import LineData
+from dewloosh.mesh.linedata import LineData as PolyData1d
+from dewloosh.mesh.pointdata import PointData

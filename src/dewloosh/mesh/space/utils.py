@@ -122,17 +122,14 @@ def tr_cell_glob_to_loc_bulk(coords: np.ndarray, topo: np.ndarray):
 def _frames_of_lines_auto(coords: ndarray, topo: ndarray):
     nE, nNE = topo.shape
     nNE -= 1
-    i = np.array([1, 0, 0], dtype=coords.dtype)
-    k = np.array([0, 0, 1], dtype=coords.dtype)
+    ijk = np.eye(3)
     tr = np.zeros((nE, 3, 3), dtype=coords.dtype)
     for iE in prange(nE):
         tr[iE, 0, :] = normalize(coords[topo[iE, nNE]] - coords[topo[iE, 0]])
-        _dot = np.dot(k, tr[iE, 0, :])
-        if _dot > 0.9:
-            _dot = np.dot(i, tr[iE, 0, :])
-            tr[iE, 2, :] = normalize(i - tr[iE, 0, :] * _dot)
-        else:
-            tr[iE, 2, :] = normalize(k - tr[iE, 0, :] * _dot)
+        _dot = ijk @ tr[iE, 0, :]
+        i2 = np.argmin(np.absolute(_dot))
+        _dot = np.dot(ijk[i2], tr[iE, 0, :])
+        tr[iE, 2, :] = normalize(ijk[i2] - tr[iE, 0, :] * _dot)            
         tr[iE, 1, :] = np.cross(tr[iE, 2, :], tr[iE, 0, :])
     return tr
 

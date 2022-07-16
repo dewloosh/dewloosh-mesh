@@ -6,7 +6,7 @@ from numba import njit
 from dewloosh.math.array import atleast3d, repeat
 
 from .space import frames_of_lines
-from .rgrid import rgridMT as grid
+from .grid import rgridMT as grid
 
 
 __cache = True

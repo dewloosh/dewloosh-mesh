@@ -100,7 +100,7 @@ class TopologyArray(NDArrayOperatorsMixin, Wrapper):
                         try:
                             wrap = args[0].to_numpy()
                         except Exception:
-                            pass
+                            wrap = args[0]
                     else:
                         wrap = self.__class__.__array_base__(*args, **kwargs)
             else:
@@ -112,12 +112,9 @@ class TopologyArray(NDArrayOperatorsMixin, Wrapper):
     def __repr__(self):
         return f"{self.__class__.__name__}\n({self._array})"
 
-    def __array__(self, dtype=int):
-        if isinstance(self._array, ndarray):
-            return self._array.astype(dtype)
-        else:
-            return self._array
-
+    def __array__(self):
+        return self._array
+            
     def __getitem__(self, key):
         return self._array.__getitem__(key)
 
@@ -131,25 +128,22 @@ class TopologyArray(NDArrayOperatorsMixin, Wrapper):
         if isinstance(self._array, akarray):
             return self.__array__()
         else:
-            return TypeError("Background object is not an `awkward` array.")
+            return self.__class__.__array_base__(self.__array__())
 
     def to_numpy(self) -> ndarray:
         if isinstance(self._array, ndarray):
             return self.__array__()
         else:
-            return TypeError("Background object is not a `numpy` array.")
+            return TypeError("Background object cannot be converted to a `numpy` array.")
 
     def to_array(self) -> Union[akarray, ndarray]:
         return self.__array__()
-
-    def __array_function__(self, func, types, args, kwargs):
-        if func not in HANDLED_FUNCTIONS:
-            return func(*args[0], **kwargs)  # vstakc works well with this
-        # Note: this allows subclasses that don't override
-        # __array_function__ to handle DiagonalArray objects.
-        if not all(issubclass(t, self.__class__) for t in types):
-            return NotImplemented
-        return HANDLED_FUNCTIONS[func](*args, **kwargs)
+    
+    def to_list(self):
+        if isinstance(self._array, ndarray):
+            return self.__array__().tolist()
+        else:
+            return self.__array__().to_list()
 
     def unique(self, *args, **kwargs):
         return np.unique(self, *args, **kwargs)
@@ -159,7 +153,6 @@ class TopologyArray(NDArrayOperatorsMixin, Wrapper):
         return not np.all(widths == widths[0])
 
     def widths(self):
-        assert self.ndim == 2, "Only 2 dimensional arrays are supported!"
         return count_cols(self._array)
 
     def flatten(self, return_cuts=False):
@@ -169,15 +162,15 @@ class TopologyArray(NDArrayOperatorsMixin, Wrapper):
         if isinstance(self._array, akarray):
             if return_cuts:
                 topo = ak.flatten(self._array).to_numpy()
-                return self.widths(), topo.astype(int)
+                return self.widths(), topo
             else:
                 topo = ak.flatten(self._array).to_numpy()
-                return topo.astype(int)
+                return topo
         else:
             if return_cuts:
-                return self.widths(), self.to_numpy().flatten().astype(int)
+                return self.widths(), self.to_numpy().flatten()
             else:
-                return self.to_numpy().flatten().astype(int)
+                return self.to_numpy().flatten()
 
     @property
     def shape(self):
@@ -185,6 +178,15 @@ class TopologyArray(NDArrayOperatorsMixin, Wrapper):
             return self._array.shape
         else:
             return len(self), self.widths()
+        
+    def __array_function__(self, func, types, args, kwargs):
+        if func not in HANDLED_FUNCTIONS:
+            return func(*args[0], **kwargs)  # vstakc works well with this
+        # Note: this allows subclasses that don't override
+        # __array_function__ to handle DiagonalArray objects.
+        if not all(issubclass(t, self.__class__) for t in types):
+            return NotImplemented
+        return HANDLED_FUNCTIONS[func](*args, **kwargs)
 
 
 def implements(numpy_function):
@@ -200,6 +202,13 @@ def unique(*args, **kwargs):
     return unique2d(args[0]._array, **kwargs)
 
 
-"""@implements(np.vstack)
+"""@implements(np.hstack)
+def hstack(*args, **kwargs):
+    return hstack2d(*args)"""
+
+
+@implements(np.vstack)
 def vstack(*args, **kwargs):
-    return np.vstack(*args[0], **kwargs)"""
+    data = np.concatenate(list(t.flatten() for t in args[0]))
+    cuts = np.concatenate(list(t.widths() for t in args[0]))
+    return TopologyArray(JaggedArray(data, cuts=cuts))

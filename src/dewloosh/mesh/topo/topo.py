@@ -749,7 +749,7 @@ def unique_topo_data(topo3d: TopoLike):
 
     >>> edges, edgeIDs = unique_topo_data(edges3d)
 
-    Then, to reconstruct `edges3d`, we would do
+    Then, to reconstruct `edges3d`, do the following
 
     >>> edges3d_ = np.zeros_like(edges3d)
     >>> for i in range(edgeIDs.shape[0]):

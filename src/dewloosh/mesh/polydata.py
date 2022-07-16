@@ -41,6 +41,7 @@ NoneType = type(None)
 
 if __haspyvista__:
     import pyvista as pv
+    from pyvista import themes
     pyVistaLike = Union[pv.PolyData, pv.UnstructuredGrid]
 else:
     pyVistaLike = NoneType
@@ -977,7 +978,8 @@ class PolyData(PolyDataBase):
     def pvplot(self, *args, deepcopy=True, jupyter_backend='pythreejs',
                show_edges=True, notebook=False, theme='document',
                scalars=None, window_size=None, return_plotter=False,
-               config_key=None, plotter=None, cmap=None, camera_position=None, **kwargs):
+               config_key=None, plotter=None, cmap=None, camera_position=None, 
+               lighting=False, edge_color=None, **kwargs):
         if not __haspyvista__:
             raise ImportError('You need to install `pyVista` for this.')
         if scalars is None:
@@ -986,16 +988,35 @@ class PolyData(PolyDataBase):
             polys = self.to_pv(deepcopy=deepcopy, scalars=scalars, fuse=False)
 
         if isinstance(theme, str):
-            # pvparams.update(theme=theme)
-            pv.set_plot_theme(theme)
+            try:
+                pv.set_plot_theme(theme)
+            except Exception:
+                if theme == 'dark':
+                    theme = themes.DarkTheme()
+                    theme.lighting = False
+                    theme.show_edges = True
+                elif theme == 'bw':
+                    theme.color = 'black'
+                    theme.lighting = True
+                    theme.show_edges = True
+                    theme.edge_color = 'white'
+                    theme.background = 'white'
+            theme = pv.global_theme    
+            
+        if lighting is not None:
+            theme.lighting = lighting
+        if show_edges is not None:
+            theme.show_edges = show_edges
+        if edge_color is not None:
+            theme.edge_color = edge_color
 
         if plotter is None:
             pvparams = dict()
             if window_size is not None:
                 pvparams.update(window_size=window_size)
             pvparams.update(kwargs)
-            if notebook:
-                pvparams.update(notebook=True)
+            pvparams.update(notebook=notebook)
+            pvparams.update(theme=theme)
             plotter = pv.Plotter(**pvparams)
         else:
             return_plotter = True

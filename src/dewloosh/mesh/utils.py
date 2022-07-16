@@ -79,11 +79,7 @@ def k_nearest_neighbours(X: ndarray, Y: ndarray=None, *args, backend='scipy',
     tree_kwargs : dict, Optional
         Extra keyword arguments passed to the KDTree creator of the selected
         backend. Default is None.
-        
-    tree_kwargs : dict, Optional
-        Extra keyword arguments passed to the query function of the selected
-        backend. Default is None.
-           
+                  
     Returns
     -------
     d : float or array of floats
@@ -106,7 +102,7 @@ def k_nearest_neighbours(X: ndarray, Y: ndarray=None, *args, backend='scipy',
     >>> shape = 10, 8, 4
     >>> grid = Grid(size=size, shape=shape, eshape='H8')
     >>> X = grid.centers()
-    >>> i, d = KNN(X, X, k=3, max_distance=10.0)
+    >>> i = KNN(X, X, k=3, max_distance=10.0)
        
     """
     tree_kwargs = {} if tree_kwargs is None else tree_kwargs
@@ -135,9 +131,20 @@ def k_nearest_neighbours(X: ndarray, Y: ndarray=None, *args, backend='scipy',
             d, i = tree.query_radius(Y, r, k=k, **query_kwargs)
     else:
         raise ImportError("Either `sklearn` or `scipy` must be present for this!")
-    return d, i if return_distance else i
+    return (d, i) if return_distance else i
 
-    
+
+@njit(nogil=True, parallel=True, cache=__cache)
+def knn_to_lines(inds : ndarray):
+    nN, nK = inds.shape
+    res = np.zeros((nN, nK, 2), dtype=inds.dtype)
+    for i in prange(nN):
+        for j in prange(nK):
+            res[i, j, 0] = i
+            res[i, j, 1] = inds[i, j]
+    return res
+
+
 def cells_around(*args, **kwargs):
     return points_around(*args, **kwargs)
 

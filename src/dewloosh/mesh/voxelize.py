@@ -6,7 +6,7 @@ from numpy import ndarray
 
 from .polydata import PolyData
 from .cells import H8
-from .rgrid import grid
+from .grid import grid
 from .topo import detach_mesh_bulk
 from .space import CartesianFrame
 

@@ -4,14 +4,15 @@ import numpy as np
 from numpy import ndarray
 from numba import njit, prange
 
+from .topo import unique_topo_data, detach_mesh_bulk
 from .topo.tr import transform_topo
-from .utils import center_of_points
+from .utils import center_of_points, k_nearest_neighbours as knn, knn_to_lines
 from .polydata import PolyData
 
 __cache = True
 
 
-__all__ = ['grid', 'gridQ4', 'gridQ9', 'gridH8', 'gridH27', 'Grid']
+__all__ = ['grid', 'gridQ4', 'gridQ9', 'gridH8', 'gridH27', 'knngridL2', 'Grid']
 
 
 def grid(*args, size=None, shape=None, eshape=None, shift=None, start=0,
@@ -504,9 +505,19 @@ def grid_3d_bins(xbins, ybins, zbins, eshape, shift, start=0):
     return coords, topo + start
 
 
+def knngridL2(*args, max_distance=None, k=3, **kwargs):
+    X, _ = grid(*args, **kwargs)
+    i = knn(X, X, k=k, max_distance=max_distance)
+    T, _ = unique_topo_data(knn_to_lines(i))
+    di = T[:, 0] - T[:, -1]
+    inds = np.where(di != 0)[0] 
+    return detach_mesh_bulk(X, T[inds, :])
+
+
 class Grid(PolyData):
     """
-    A class to handle quadrilateral or hexagonal meshes.
+    A class to generate meshes based on grid-like data. All input
+    arguments are forwarded to ``grid``.
     
     Examples
     --------
@@ -522,3 +533,4 @@ class Grid(PolyData):
         coords, topo = grid(*args, eshape=eshape, **kwargs)
         super().__init__(*args, coords=coords, topo=topo, 
                          celltype=celltype, frame=frame, **kwargs)
+        

@@ -19,6 +19,7 @@ from dewloosh.math.linalg.frame import ReferenceFrame as FrameLike
 
 from .frame import CartesianFrame
 from .point import Point
+from .utils import index_of_closest_point
 
 __cache = True
 
@@ -26,7 +27,7 @@ __cache = True
 __all__ = ['PointCloud']
 
 
-VectorLike = Union[Vector, ndarray]
+VectorLike = Union[Point, Vector, ndarray]
 
 
 @njit(nogil=True, parallel=True, cache=__cache)
@@ -50,17 +51,18 @@ def dcoords(coords, v):
 
 
 class PointCloud(Vector):
-    """A class to support calculations related to points in Euclidean space.
-    
+    """A numba-jittable class to support calculations related to points 
+    in Euclidean space.
+
     Parameters
     ----------
     frame : ndarray, Optional.
         A numpy array representing coordinate axes of a reference frame.
         Default is None.
-        
+
     inds : ndarray, Optional.
         An 1d integer array specifying point indices. Default is None.
-    
+
     Examples
     --------
     Collect the points of a simple triangulation and get the center:
@@ -110,6 +112,18 @@ class PointCloud(Vector):
 
     >>> coords[10:50][[1, 2, 10]].inds
     array([11, 12, 20])
+    
+    The instances are available in numba-jitted functions:
+    
+    >>> from numba import njit
+    
+    >>> @njit
+    >>> def foo(arr): 
+    >>>     return arr.inds
+    
+    >>> c = np.array([[0, 0, 0], [0, 0, 1.], [0, 0, 0]])
+    >>> COORD = PointCloud(c, inds=np.array([0, 1, 2, 3]))
+    >>> foo(COORD)
 
     """
 
@@ -189,7 +203,7 @@ class PointCloud(Vector):
         Returns the bounds of the pointcloud as a numpy array with
         a shape of (N, 2), where N is 2 for 2d problems and 3 for 3d 
         ones.
-        
+
         """
         arr = self.show(target)
         dim = arr.shape[1]
@@ -220,6 +234,60 @@ class PointCloud(Vector):
         arr = self.show(target)
         def foo(i): return np.mean(arr[:, i])
         return np.array(list(map(foo, range(self.shape[1]))))
+
+    def id_of_closest(self, p: VectorLike, frame: FrameLike = None):
+        """
+        Returns the index of the point being closest to `p`.
+
+        Parameters
+        ----------
+
+        p : Vector or Array, Optional
+            An array of a vector. If provided as an array, the `frame`
+            argument can be used to specify the parent frame in which the
+            motion is tp be understood.
+
+        frame : ReferenceFrame, Optional
+            A frame in which the input is defined if it is not a Vector.
+            Default is None.
+
+        Returns
+        -------
+        int
+
+        """
+        if not isinstance(p, Vector):
+            p = Vector(p, frame=frame)
+        return index_of_closest_point(self.show(), p.show())
+
+    def closest(self, p: VectorLike, frame: FrameLike = None) -> Point:
+        """
+        Returns the point being closest to `p`.
+
+        Parameters
+        ----------
+
+        p : Vector or Array, Optional
+            An array of a vector. If provided as an array, the `frame`
+            argument can be used to specify the parent frame in which the
+            motion is tp be understood.
+
+        frame : ReferenceFrame, Optional
+            A frame in which the input is defined if it is not a Vector.
+            Default is None.
+
+        Returns
+        -------
+        Point
+
+        """
+        id = self.id_of_closest(p, frame)
+        arr = self._array[id, :]
+        if isinstance(self.inds, np.ndarray):
+            gid = self.inds[id]
+        else:
+            gid = id
+        return Point(arr, frame=self.frame, id=id, gid=gid)
 
     def show(self, target: FrameLike = None):
         """

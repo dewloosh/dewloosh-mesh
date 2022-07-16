@@ -47,7 +47,7 @@ class Point(Vector):
 
     _frame_cls_ = CartesianFrame
 
-    def __init__(self, *args, frame=None, **kwargs):
+    def __init__(self, *args, frame=None, id=None, gid=None, **kwargs):
         if frame is None:
             if len(args) > 0:
                 if isinstance(args[0], np.ndarray):
@@ -59,3 +59,13 @@ class Point(Vector):
                     except Exception:
                         frame = None
         super().__init__(*args, frame=frame, **kwargs)
+        self._id = id
+        self._gid = id if gid is None else gid
+    
+    @property
+    def id(self):
+        return self._id
+    
+    @property
+    def gid(self):
+        return self._gid
