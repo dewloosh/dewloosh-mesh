@@ -3,6 +3,7 @@ import numpy as np
 
 from .polydata import PolyData
 from .cells import L2, L3
+from .plotting.plotly import plot_lines_3d
 
 
 __all__ = ['LineData']
@@ -33,4 +34,15 @@ class LineData(PolyData):
         self.config[key]['color'] = 'k'
         self.config[key]['line_width'] = 10
         self.config[key]['render_lines_as_tubes'] = True 
+        
+    def plot(self, *args, scalars=None, backend='plotly', scalar_labels=None, **kwargs):
+        if backend == 'vtk':
+            return self.pvplot(*args, scalars=scalars, scalar_labels=scalar_labels, 
+                               **kwargs)
+        elif backend == 'plotly':
+            return plot_lines_3d
+        else:
+            msg = "No implementation for backend '{}'".format(backend)
+            raise NotImplementedError(msg)
+        
                

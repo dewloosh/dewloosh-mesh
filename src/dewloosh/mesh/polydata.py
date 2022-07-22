@@ -1039,7 +1039,7 @@ class PolyData(PolyDataBase):
         if notebook:
             return plotter.show(jupyter_backend=jupyter_backend)
         else:
-            return plotter.show(jupyter_backend='none')
+            return plotter.show()
 
     def __join_parent__(self, parent: DeepDict, key: Hashable = None):
         super().__join_parent__(parent, key)

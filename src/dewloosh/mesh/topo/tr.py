@@ -24,6 +24,7 @@ __all__ = [
     'T3_to_T6', 'T6_to_T3',
     'Q4_to_Q8',
     'Q4_to_Q9', 'Q9_to_Q4',
+    'Q8_to_T3',
     'Q9_to_T6',
     'Q4_to_T3',
     'H8_to_H27',
@@ -218,6 +219,28 @@ def Q4_to_T3(coords: ndarray, topo: ndarray, data: DataLike = None,
         elif isinstance(path, str):
             if path == 'grid':
                 path = np.array([[0, 2, 3], [0, 3, 1]], dtype=topo.dtype)
+    if data is None:
+        return coords, + transform_topo(topo, path, *args, **kwargs)
+    else:
+        return (coords,) + transform_topo(topo, path, data, *args, **kwargs)
+    
+
+def Q8_to_T3(coords: ndarray, topo: ndarray, data: DataLike = None,
+             *args, path: ndarray = None, **kwargs):
+    if isinstance(path, ndarray):
+        assert path.shape[1] == 3
+    else:
+        if path is None:
+            path = np.array([
+                [0, 4, 7], 
+                [4, 1, 5],
+                [5, 2, 6],
+                [6, 3, 7],
+                [4, 6, 7],
+                [4, 5, 6],
+                ], dtype=topo.dtype)
+        elif isinstance(path, str):
+            raise NotImplementedError
     if data is None:
         return coords, + transform_topo(topo, path, *args, **kwargs)
     else:

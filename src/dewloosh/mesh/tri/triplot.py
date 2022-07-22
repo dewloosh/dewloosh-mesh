@@ -5,6 +5,8 @@ from functools import partial
 
 from dewloosh.core.tools import issequence
 
+from dewloosh.math.array import minmax
+
 from .triang import triobj_to_mpl, get_triobj_data, triangulate
 from .triutils import offset_tri
 from ..utils import cells_coords, explode_mesh_data_bulk
@@ -16,6 +18,7 @@ if __hasmatplotlib__:
     from matplotlib.patches import Polygon
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     from matplotlib.collections import PatchCollection
+    import matplotlib.tri as mpltri
 
 
 __all__ = ['triplot']
@@ -25,7 +28,7 @@ def triplot(triobj, *args, hinton=False, data=None, title=None,
             label=None, fig=None, ax=None, axes=None, **kwargs):
     """
     Creates plots over triangulations using `matplotlib`.
-    
+
     Parameters
     ----------
     triobj : TriMeshLike
@@ -35,40 +38,40 @@ def triplot(triobj, *args, hinton=False, data=None, title=None,
     hinton : bool, Optional.
         Creates a hinton-like plot. Only wors if the provided data is along
         the cells. Default is False.
-        
+
     data : ndarray, Optional.  
         Some data to plot as an 1d or 2d numpy array. Default is None.
-    
+
     title : str, Optional.
         Title of the plot. See `matplotlib` for further details.
         Default is None.
-        
+
     label : str, Optional.
         Title of the plot. See `matplotlib` for further details.
         Default is None.
-        
+
     fig : matplotlib.Figure, Optional.
         A `matplotlib` figure to plot on. Default is None.
-        
+
     ax : matplotlib.axes.Axes or a collection of it, Optional.
         A `matplotlib` axis, or a collection of such objects to plot on. 
         Default is None.
-        
+
     kwargs : dict, Optional.
         The following keyword arguments are understood and forwarded to the 
         appropriate function in `matplotlib`:
-        
+
         'cmap' - colormap (if `data` is provided)   
         'lw' 
         'xlim' 
         'ylim' 
         'axis' 
         'suptitle'
-        
+
     Examples
     --------
     Let's first create a triangulation
-    
+
     >>> from dewloosh.mesh.rgrid import grid
     >>> from dewloosh.mesh.topo.tr import Q4_to_T3
     >>> from dewloosh.mesh.tri.trimesh import triangulate
@@ -84,28 +87,28 @@ def triplot(triobj, *args, hinton=False, data=None, title=None,
     >>> coordsQ4, topoQ4 = grid(**gridparams)
     >>> points, triangles = Q4_to_T3(coordsQ4, topoQ4, path='grid')
     >>> triobj = triangulate(points=points[:, :2], triangles=triangles)[-1]
-    
+
     If you jsut want to plot the mesh itself, do this if
-    
+
     >>> triplot(triobj)
-    
+
     Plot the mesh with random data over the cells
-    
+
     >>> data = np.random.rand(len(triangles))   
     >>> triplot(triobj, data=data)
-    
+
     >>> data = np.random.rand(len(triangles))
     >>> triplot(triobj, hinton=True, data=data)
-    
+
     Plot the mesh with random data over the points
-    
+
     >>> data = np.random.rand(len(points))
     >>> triplot(triobj, data=data, cmap='bwr')    
-    
+
     You can play with the arguments sent to mpl
-    
+
     >>> triplot(triobj, data=data, cmap='Set1', axis='off')
-    
+
     """
     fig, axes = get_fig_axes(*args, data=data, ax=ax, axes=axes,
                              fig=fig, **kwargs)
@@ -182,12 +185,16 @@ def triplot_geom(triobj, ax, *args, lw=0.5, marker='b-',
 
 
 def triplot_data(triobj, ax, data, *args, cmap='winter', fig=None,
-                 ecolor='k', lw=0.1, title=None, suptitle=None,
-                 label=None, **kwargs):
+                 ecolor='k', lw=0.1, title=None, suptitle=None, label=None,
+                 nlevels=None, refine=False, refiner=None, 
+                 subdiv=3, cbpad = "2%", cbsize="5%", cbpos='right', **kwargs):
 
     axobj = None
     tri = triobj_to_mpl(triobj)
     points, triangles = get_triobj_data(tri, trim2d=True)
+
+    if refiner is not None:
+        refine = True
 
     nData = len(data)
     if nData == len(triangles):
@@ -196,7 +203,6 @@ def triplot_data(triobj, ax, data, *args, cmap='winter', fig=None,
             axobj = ax.tripcolor(tri, facecolors=data, cmap=cmap,
                                  edgecolors=ecolor, lw=lw)
         elif nD == 2 and data.shape[1] == 3:
-            nT, nN = data.shape
             points, triangles, data = \
                 explode_mesh_data_bulk(points, triangles, data)
             triobj = triangulate(points=points, triangles=triangles)[-1]
@@ -204,12 +210,22 @@ def triplot_data(triobj, ax, data, *args, cmap='winter', fig=None,
             axobj = ax.tripcolor(tri, data, cmap=cmap,
                                  edgecolors=ecolor, lw=lw)
     elif nData == len(points):
-        axobj = ax.tripcolor(tri, data, cmap=cmap,
-                             edgecolors=ecolor, lw=lw)
+        if refine:
+            if refiner is None:
+                refiner = mpltri.UniformTriRefiner(triobj)
+            tri, data = refiner.refine_field(data, subdiv=subdiv)
+        if isinstance(nlevels, int):
+            dmin, dmax = minmax(data)
+            levels = np.linspace(dmin, dmax, nlevels+1)
+            axobj = ax.tricontourf(tri, data, levels=levels, cmap=cmap)
+            ax.tricontour(tri, data, levels=levels)
+        else:
+            axobj = ax.tripcolor(tri, data, cmap=cmap, 
+                                 edgecolors=ecolor, lw=lw)
 
     assert axobj is not None, "Failed to handle the provided data."
     divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
+    cax = divider.append_axes(cbpos, size=cbsize, pad=cbpad)
     fig.colorbar(axobj, cax=cax)
 
     decorate_ax(fig=fig, ax=ax, points=points, title=title,
